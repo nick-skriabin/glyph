@@ -1,0 +1,8 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/glyph" },
+    { "path": "examples/basic-layout" },
+    { "path": "examples/modal-input" }
+  ]
+}
