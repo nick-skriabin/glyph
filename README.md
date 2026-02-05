@@ -33,7 +33,7 @@ Build real terminal applications with React. Glyph provides a full component mod
 | | |
 |---|---|
 | **Flexbox Layout** | Full CSS-like flexbox via Yoga &mdash; rows, columns, wrapping, alignment, gaps, padding |
-| **Rich Components** | Box, Text, Input, Button, ScrollView, List, Menu, Portal, and more |
+| **Rich Components** | Box, Text, Input, Button, ScrollView, List, Menu, Progress, Spinner, Toasts, Portal |
 | **Focus System** | Tab navigation, focus scopes, focus trapping for modals |
 | **Keyboard Input** | `useInput` hook, declarative `<Keybind>` component, vim-style bindings |
 | **Smart Rendering** | Double-buffered framebuffer with character-level diffing &mdash; only changed cells are written |
@@ -235,6 +235,43 @@ Declarative keyboard shortcut. Renders nothing.
 <Keybind keypress="q" onPress={() => exit()} />
 ```
 
+### `<Progress>`
+
+Determinate or indeterminate progress bar. Uses `useLayout` to measure actual width and renders block characters.
+
+```tsx
+<Progress value={0.65} showPercent />
+<Progress indeterminate label="Loading" />
+```
+
+Props: `value` (0..1), `indeterminate`, `width`, `label`, `showPercent`, `filled`/`empty` (characters).
+
+### `<Spinner>`
+
+Animated spinner with configurable frames. Cleans up timers on unmount.
+
+```tsx
+<Spinner label="Loading..." style={{ color: "green" }} />
+<Spinner frames={["|", "/", "-", "\\"]} intervalMs={100} />
+```
+
+### `<ToastHost>` + `useToast()`
+
+Lightweight toast notifications rendered via Portal. Wrap your app in `<ToastHost>`, then push toasts from anywhere with `useToast()`.
+
+```tsx
+function App() {
+  const toast = useToast();
+  return <Keybind keypress="t" onPress={() =>
+    toast({ message: "Saved!", variant: "success" })
+  } />;
+}
+
+render(<ToastHost position="top-right"><App /></ToastHost>);
+```
+
+Variants: `"info"`, `"success"`, `"warning"`, `"error"`. Auto-dismiss after `durationMs` (default 3000).
+
 ### `<Spacer>`
 
 Flexible space filler. Pushes siblings apart.
@@ -398,6 +435,7 @@ pnpm --filter modal-input dev       # Modal, input, focus trapping
 pnpm --filter scrollview-demo dev   # Scrollable content
 pnpm --filter list-demo dev         # Keyboard-navigable list
 pnpm --filter menu-demo dev         # Styled menu
+pnpm --filter showcase dev          # Progress, Spinner, Toasts
 ```
 
 ---
