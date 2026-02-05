@@ -1,7 +1,156 @@
 import React, { useState, useContext, useEffect, useRef } from "react";
 import type { Style, Key } from "../types/index.js";
-import { InputContext, FocusContext } from "../hooks/context.js";
+import { InputContext, FocusContext, LayoutContext } from "../hooks/context.js";
 import type { GlyphNode } from "../reconciler/nodes.js";
+import { wrapLines } from "../layout/textMeasure.js";
+
+// ── Visual line helpers (accounts for word wrapping) ──────────
+
+interface VisualLineInfo {
+  visualLine: number;
+  visualCol: number;
+  totalVisualLines: number;
+  /** Character offset where current visual line starts in original text */
+  lineStartOffset: number;
+  /** Length of current visual line */
+  lineLength: number;
+}
+
+/**
+ * Convert flat cursor position → visual (wrapped) line/col.
+ * This accounts for soft wrapping based on width.
+ */
+function cursorToVisualLine(
+  text: string,
+  pos: number,
+  width: number,
+): VisualLineInfo {
+  if (width <= 0) {
+    return { visualLine: 0, visualCol: pos, totalVisualLines: 1, lineStartOffset: 0, lineLength: text.length };
+  }
+  
+  const logicalLines = text.split("\n");
+  const allVisualLines: { text: string; logicalOffset: number }[] = [];
+  
+  let logicalOffset = 0;
+  for (const logicalLine of logicalLines) {
+    const wrapped = wrapLines([logicalLine], width, "wrap");
+    let offsetInLogical = 0;
+    for (const wrappedLine of wrapped) {
+      allVisualLines.push({ 
+        text: wrappedLine, 
+        logicalOffset: logicalOffset + offsetInLogical 
+      });
+      offsetInLogical += wrappedLine.length;
+    }
+    logicalOffset += logicalLine.length + 1; // +1 for newline
+  }
+  
+  // Find which visual line contains the cursor
+  let charCount = 0;
+  for (let i = 0; i < allVisualLines.length; i++) {
+    const vl = allVisualLines[i]!;
+    const lineLen = vl.text.length;
+    // Account for newline at end of logical lines (except last)
+    const isEndOfLogicalLine = i + 1 < allVisualLines.length && 
+      allVisualLines[i + 1]!.logicalOffset !== vl.logicalOffset + lineLen;
+    const effectiveLen = lineLen + (isEndOfLogicalLine ? 1 : 0);
+    
+    // Use < instead of <= so cursor at wrap boundary belongs to the NEXT line
+    // Exception: last line always captures remaining positions
+    if (pos < charCount + lineLen || i === allVisualLines.length - 1) {
+      return {
+        visualLine: i,
+        visualCol: Math.min(pos - charCount, lineLen),
+        totalVisualLines: allVisualLines.length,
+        lineStartOffset: charCount,
+        lineLength: lineLen,
+      };
+    }
+    charCount += effectiveLen;
+  }
+  
+  // Fallback
+  const lastIdx = allVisualLines.length - 1;
+  return {
+    visualLine: lastIdx,
+    visualCol: allVisualLines[lastIdx]!.text.length,
+    totalVisualLines: allVisualLines.length,
+    lineStartOffset: charCount - allVisualLines[lastIdx]!.text.length,
+    lineLength: allVisualLines[lastIdx]!.text.length,
+  };
+}
+
+/**
+ * Convert visual (wrapped) line/col → flat cursor position.
+ */
+function visualLineToCursor(
+  text: string,
+  visualLine: number,
+  visualCol: number,
+  width: number,
+): number {
+  if (width <= 0) {
+    return Math.min(visualCol, text.length);
+  }
+  
+  const logicalLines = text.split("\n");
+  const allVisualLines: { text: string; startOffset: number }[] = [];
+  
+  let offset = 0;
+  for (const logicalLine of logicalLines) {
+    const wrapped = wrapLines([logicalLine], width, "wrap");
+    let offsetInLogical = 0;
+    for (const wrappedLine of wrapped) {
+      allVisualLines.push({ 
+        text: wrappedLine, 
+        startOffset: offset + offsetInLogical 
+      });
+      offsetInLogical += wrappedLine.length;
+    }
+    offset += logicalLine.length + 1;
+  }
+  
+  const targetLine = Math.max(0, Math.min(visualLine, allVisualLines.length - 1));
+  const vl = allVisualLines[targetLine]!;
+  const col = Math.min(visualCol, vl.text.length);
+  
+  return vl.startOffset + col;
+}
+
+// ── Logical line helpers (for Ctrl+A/E/U/K, Home/End) ─────────
+
+/** Convert flat cursor position → (line, col) within newline-separated text. */
+function cursorToLineCol(
+  text: string,
+  pos: number,
+): { line: number; col: number; lines: string[] } {
+  const lines = text.split("\n");
+  let remaining = pos;
+  for (let i = 0; i < lines.length; i++) {
+    if (remaining <= lines[i]!.length) {
+      return { line: i, col: remaining, lines };
+    }
+    remaining -= lines[i]!.length + 1;
+  }
+  const last = lines.length - 1;
+  return { line: last, col: lines[last]!.length, lines };
+}
+
+/** Convert (line, col) → flat cursor position. */
+function lineColToCursor(
+  lines: string[],
+  line: number,
+  col: number,
+): number {
+  let pos = 0;
+  for (let i = 0; i < line && i < lines.length; i++) {
+    pos += lines[i]!.length + 1;
+  }
+  return pos + Math.min(col, lines[line]?.length ?? 0);
+}
+
+// ── Component ─────────────────────────────────────────────────
 
 export interface InputProps {
   value?: string;
@@ -9,28 +158,77 @@ export interface InputProps {
   onChange?: (value: string) => void;
   placeholder?: string;
   style?: Style;
+  /** Style when focused (merged with style) */
+  focusedStyle?: Style;
+  /** Enable multiline editing (Enter inserts newlines, Up/Down navigate lines). */
+  multiline?: boolean;
 }
 
 export function Input(props: InputProps): React.JSX.Element {
-  const { value: controlledValue, defaultValue = "", onChange, placeholder, style } = props;
+  const {
+    value: controlledValue,
+    defaultValue = "",
+    onChange,
+    placeholder,
+    style,
+    focusedStyle,
+    multiline,
+  } = props;
   const [internalValue, setInternalValue] = useState(defaultValue);
   const [cursorPos, setCursorPos] = useState(defaultValue.length);
+  const [innerWidth, setInnerWidth] = useState(0);
+  const [isFocused, setIsFocused] = useState(false);
   const inputCtx = useContext(InputContext);
   const focusCtx = useContext(FocusContext);
+  const layoutCtx = useContext(LayoutContext);
   const nodeRef = useRef<GlyphNode | null>(null);
   const focusIdRef = useRef<string | null>(null);
 
   const isControlled = controlledValue !== undefined;
   const value = isControlled ? controlledValue : internalValue;
 
-  // Keep a ref to current value/cursor so the handler closure always reads fresh values
-  const stateRef = useRef({ value, cursorPos, isControlled, onChange });
-  stateRef.current = { value, cursorPos, isControlled, onChange };
+  // Subscribe to layout changes to get innerWidth for visual line navigation
+  useEffect(() => {
+    if (!layoutCtx || !nodeRef.current) return;
+    const layout = layoutCtx.getLayout(nodeRef.current);
+    setInnerWidth(layout.innerWidth);
+    return layoutCtx.subscribe(nodeRef.current, (rect) => {
+      setInnerWidth(rect.innerWidth);
+    });
+  }, [layoutCtx]);
+
+  // Keep a ref to current values so the handler closure always reads fresh state
+  const stateRef = useRef({
+    value,
+    cursorPos,
+    isControlled,
+    onChange,
+    multiline: multiline ?? false,
+    innerWidth,
+  });
+  stateRef.current = {
+    value,
+    cursorPos,
+    isControlled,
+    onChange,
+    multiline: multiline ?? false,
+    innerWidth,
+  };
 
   // Register with focus system
   useEffect(() => {
     if (!focusCtx || !focusIdRef.current || !nodeRef.current) return;
     return focusCtx.register(focusIdRef.current, nodeRef.current);
+  }, [focusCtx]);
+
+  // Subscribe to focus changes for reactive visual state
+  useEffect(() => {
+    if (!focusCtx || !focusIdRef.current) return;
+    const fid = focusIdRef.current;
+    setIsFocused(focusCtx.focusedId === fid);
+    return focusCtx.onFocusChange((newId) => {
+      setIsFocused(newId === fid);
+    });
   }, [focusCtx]);
 
   // Register focused input handler - returns true for consumed keys
@@ -39,19 +237,42 @@ export function Input(props: InputProps): React.JSX.Element {
     const fid = focusIdRef.current;
 
     const handler = (key: Key): boolean => {
-      const { value: val, cursorPos: pos, isControlled: ctrl, onChange: cb } = stateRef.current;
+      const {
+        value: val,
+        cursorPos: pos,
+        isControlled: ctrl,
+        onChange: cb,
+        multiline: ml,
+      } = stateRef.current;
 
-      // Pass through escape/return - let useInput handlers see them
-      if (key.name === "escape" || key.name === "return") return false;
+      // Escape always passes through
+      if (key.name === "escape") return false;
+
+      // Return: pass through for single-line, insert newline for multiline
+      if (key.name === "return") {
+        if (ml) {
+          const newVal = val.slice(0, pos) + "\n" + val.slice(pos);
+          if (!ctrl) setInternalValue(newVal);
+          cb?.(newVal);
+          setCursorPos(pos + 1);
+          return true;
+        }
+        return false;
+      }
 
       // Ctrl shortcuts consumed by the input
       if (key.ctrl) {
         if (key.name === "w") {
-          // Delete word backward
+          // Delete word backward (stops at newline in multiline)
           if (pos > 0) {
             let i = pos;
             while (i > 0 && val[i - 1] === " ") i--;
-            while (i > 0 && val[i - 1] !== " ") i--;
+            while (
+              i > 0 &&
+              val[i - 1] !== " " &&
+              (!ml || val[i - 1] !== "\n")
+            )
+              i--;
             const newVal = val.slice(0, i) + val.slice(pos);
             if (!ctrl) setInternalValue(newVal);
             cb?.(newVal);
@@ -59,24 +280,61 @@ export function Input(props: InputProps): React.JSX.Element {
           }
           return true;
         }
-        if (key.name === "a") { setCursorPos(0); return true; }
-        if (key.name === "e") { setCursorPos(val.length); return true; }
-        if (key.name === "u") {
-          // Delete from cursor to start
-          if (pos > 0) {
-            const newVal = val.slice(pos);
-            if (!ctrl) setInternalValue(newVal);
-            cb?.(newVal);
+        if (key.name === "a") {
+          if (ml) {
+            const { line, lines } = cursorToLineCol(val, pos);
+            setCursorPos(lineColToCursor(lines, line, 0));
+          } else {
             setCursorPos(0);
           }
           return true;
         }
+        if (key.name === "e") {
+          if (ml) {
+            const { line, lines } = cursorToLineCol(val, pos);
+            setCursorPos(lineColToCursor(lines, line, lines[line]!.length));
+          } else {
+            setCursorPos(val.length);
+          }
+          return true;
+        }
+        if (key.name === "u") {
+          // Delete from cursor to start of line
+          if (ml) {
+            const { line, lines } = cursorToLineCol(val, pos);
+            const lineStart = lineColToCursor(lines, line, 0);
+            if (pos > lineStart) {
+              const newVal = val.slice(0, lineStart) + val.slice(pos);
+              if (!ctrl) setInternalValue(newVal);
+              cb?.(newVal);
+              setCursorPos(lineStart);
+            }
+          } else {
+            if (pos > 0) {
+              const newVal = val.slice(pos);
+              if (!ctrl) setInternalValue(newVal);
+              cb?.(newVal);
+              setCursorPos(0);
+            }
+          }
+          return true;
+        }
         if (key.name === "k") {
-          // Delete from cursor to end
-          if (pos < val.length) {
-            const newVal = val.slice(0, pos);
-            if (!ctrl) setInternalValue(newVal);
-            cb?.(newVal);
+          // Delete from cursor to end of line
+          if (ml) {
+            const { line, lines } = cursorToLineCol(val, pos);
+            const lineEnd = lineColToCursor(lines, line, lines[line]!.length);
+            if (pos < lineEnd) {
+              const newVal = val.slice(0, pos) + val.slice(lineEnd);
+              if (!ctrl) setInternalValue(newVal);
+              cb?.(newVal);
+            }
+          } else {
+            if (pos < val.length) {
+              const newVal = val.slice(0, pos);
+              if (!ctrl) setInternalValue(newVal);
+              cb?.(newVal);
+            }
           }
           return true;
         }
@@ -84,8 +342,59 @@ export function Input(props: InputProps): React.JSX.Element {
         return false;
       }
 
-      // Pass through alt combos to useInput
-      if (key.alt) return false;
+      // ── Alt + Arrow: Word navigation ────────────────────────
+      if (key.alt) {
+        if (key.name === "left" || key.name === "b") {
+          // Move to start of previous word
+          let i = pos;
+          // Skip any spaces before cursor
+          while (i > 0 && val[i - 1] === " ") i--;
+          // Skip the word
+          while (i > 0 && val[i - 1] !== " " && val[i - 1] !== "\n") i--;
+          setCursorPos(i);
+          return true;
+        }
+        if (key.name === "right" || key.name === "f") {
+          // Move to end of next word
+          let i = pos;
+          // Skip current word
+          while (i < val.length && val[i] !== " " && val[i] !== "\n") i++;
+          // Skip spaces after word
+          while (i < val.length && val[i] === " ") i++;
+          setCursorPos(i);
+          return true;
+        }
+        if (key.name === "backspace" || key.name === "d") {
+          // Delete word backward (Alt+Backspace or Alt+D for forward)
+          if (key.name === "backspace") {
+            if (pos > 0) {
+              let i = pos;
+              while (i > 0 && val[i - 1] === " ") i--;
+              while (i > 0 && val[i - 1] !== " " && val[i - 1] !== "\n") i--;
+              const newVal = val.slice(0, i) + val.slice(pos);
+              if (!ctrl) setInternalValue(newVal);
+              cb?.(newVal);
+              setCursorPos(i);
+            }
+            return true;
+          } else {
+            // Alt+D: delete word forward
+            if (pos < val.length) {
+              let i = pos;
+              while (i < val.length && val[i] !== " " && val[i] !== "\n") i++;
+              while (i < val.length && val[i] === " ") i++;
+              const newVal = val.slice(0, pos) + val.slice(i);
+              if (!ctrl) setInternalValue(newVal);
+              cb?.(newVal);
+            }
+            return true;
+          }
+        }
+        // Pass through other alt combos
+        return false;
+      }
+
+      // ── Navigation ──────────────────────────────────────────
 
       if (key.name === "left") {
         setCursorPos((p) => Math.max(0, p - 1));
@@ -95,14 +404,45 @@ export function Input(props: InputProps): React.JSX.Element {
         setCursorPos((p) => Math.min(val.length, p + 1));
         return true;
       }
+      if (key.name === "up") {
+        const { innerWidth: w } = stateRef.current;
+        // Use visual line navigation (accounts for word wrapping)
+        const info = cursorToVisualLine(val, pos, w);
+        if (info.visualLine > 0) {
+          setCursorPos(visualLineToCursor(val, info.visualLine - 1, info.visualCol, w));
+        }
+        return true;
+      }
+      if (key.name === "down") {
+        const { innerWidth: w } = stateRef.current;
+        // Use visual line navigation (accounts for word wrapping)
+        const info = cursorToVisualLine(val, pos, w);
+        if (info.visualLine < info.totalVisualLines - 1) {
+          setCursorPos(visualLineToCursor(val, info.visualLine + 1, info.visualCol, w));
+        }
+        return true;
+      }
       if (key.name === "home") {
-        setCursorPos(0);
+        if (ml) {
+          const { line, lines } = cursorToLineCol(val, pos);
+          setCursorPos(lineColToCursor(lines, line, 0));
+        } else {
+          setCursorPos(0);
+        }
         return true;
       }
       if (key.name === "end") {
-        setCursorPos(val.length);
+        if (ml) {
+          const { line, lines } = cursorToLineCol(val, pos);
+          setCursorPos(lineColToCursor(lines, line, lines[line]!.length));
+        } else {
+          setCursorPos(val.length);
+        }
         return true;
       }
+
+      // ── Editing ─────────────────────────────────────────────
+
       if (key.name === "backspace") {
         if (pos > 0) {
           const newVal = val.slice(0, pos - 1) + val.slice(pos);
@@ -140,13 +480,21 @@ export function Input(props: InputProps): React.JSX.Element {
     return inputCtx.registerInputHandler(fid, handler);
   }, [inputCtx]);
 
+  // Merge styles based on focus state
+  const mergedStyle: Style = {
+    ...style,
+    ...(isFocused && focusedStyle ? focusedStyle : {}),
+  };
+
   return React.createElement("input" as any, {
-    style,
+    style: mergedStyle,
     value,
     defaultValue,
     placeholder,
     onChange,
     cursorPosition: cursorPos,
+    multiline: multiline ?? false,
+    focused: isFocused,
     ref: (node: any) => {
       if (node) {
         nodeRef.current = node;

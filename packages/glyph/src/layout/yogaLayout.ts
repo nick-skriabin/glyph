@@ -79,11 +79,9 @@ function applyStyleToYogaNode(yogaNode: YogaNode, style: Style, nodeType: string
   if (style.paddingBottom !== undefined) yogaNode.setPadding(Edge.Bottom, style.paddingBottom);
   if (style.paddingLeft !== undefined) yogaNode.setPadding(Edge.Left, style.paddingLeft);
 
-  // Border thickness for layout (1 cell if border is set)
+  // Border thickness for layout (1 cell if border is set, 0 otherwise)
   const hasBorder = style.border != null && style.border !== "none";
-  if (hasBorder) {
-    yogaNode.setBorder(Edge.All, 1);
-  }
+  yogaNode.setBorder(Edge.All, hasBorder ? 1 : 0);
 
   // Flex
   if (style.flexDirection) {

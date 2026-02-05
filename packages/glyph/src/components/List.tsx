@@ -54,6 +54,7 @@ export function List({
   onSelectRef.current = onSelect;
 
   const [isFocused, setIsFocused] = useState(false);
+  const lastKeyRef = useRef<string | null>(null);
 
   const setIndex = useCallback(
     (next: number) => {
@@ -99,6 +100,20 @@ export function List({
     });
   }, [focusCtx]);
 
+  // Find first non-disabled index from start or end
+  const findFirstEnabled = useCallback(
+    (fromEnd: boolean): number => {
+      const start = fromEnd ? count - 1 : 0;
+      const direction = fromEnd ? -1 : 1;
+      let index = start;
+      while (index >= 0 && index < count && disabledIndices?.has(index)) {
+        index += direction;
+      }
+      return index >= 0 && index < count ? index : (fromEnd ? count - 1 : 0);
+    },
+    [disabledIndices, count],
+  );
+
   // Handle keyboard when focused
   useEffect(() => {
     if (!inputCtx || !focusIdRef.current || !focusable) return;
@@ -107,25 +122,52 @@ export function List({
     const handler = (key: Key): boolean => {
       if (focusCtx?.focusedId !== fid) return false;
 
-      if (key.name === "up") {
+      // gg - go to top (requires two consecutive 'g' presses)
+      if (key.name === "g" && !key.ctrl && !key.alt) {
+        if (lastKeyRef.current === "g") {
+          setIndex(findFirstEnabled(false));
+          lastKeyRef.current = null;
+          return true;
+        }
+        lastKeyRef.current = "g";
+        return true;
+      }
+
+      // G - go to bottom
+      if (key.name === "G" || (key.name === "g" && key.shift)) {
+        lastKeyRef.current = null;
+        setIndex(findFirstEnabled(true));
+        return true;
+      }
+
+      // Clear lastKey for any other key
+      lastKeyRef.current = null;
+
+      // Up / k - move up
+      if (key.name === "up" || key.name === "k") {
         setIndex(findNextEnabled(selectedIndex, -1));
         return true;
       }
-      if (key.name === "down") {
+
+      // Down / j - move down
+      if (key.name === "down" || key.name === "j") {
         setIndex(findNextEnabled(selectedIndex, 1));
         return true;
       }
+
+      // Enter - select
       if (key.name === "return") {
         if (!(disabledIndices?.has(selectedIndex))) {
           onSelectRef.current?.(selectedIndex);
         }
         return true;
       }
+
       return false;
     };
 
     return inputCtx.registerInputHandler(fid, handler);
-  }, [inputCtx, focusCtx, focusable, selectedIndex, setIndex, findNextEnabled, disabledIndices]);
+  }, [inputCtx, focusCtx, focusable, selectedIndex, setIndex, findNextEnabled, findFirstEnabled, disabledIndices]);
 
   // Render items
   const items: ReactNode[] = [];

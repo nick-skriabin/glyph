@@ -1,9 +1,10 @@
-import React, { useRef, useState, useCallback, useEffect } from "react";
+import React, { useRef, useState, useCallback, useEffect, useContext } from "react";
 import type { ReactNode } from "react";
 import type { Style, Key } from "../types/index.js";
 import type { GlyphNode } from "../reconciler/nodes.js";
 import { useLayout } from "../hooks/useLayout.js";
 import { useInput } from "../hooks/useInput.js";
+import { FocusContext, LayoutContext } from "../hooks/context.js";
 
 export interface ScrollViewProps {
   children?: ReactNode;
@@ -18,6 +19,10 @@ export interface ScrollViewProps {
   scrollStep?: number;
   /** Disable keyboard scrolling */
   disableKeyboard?: boolean;
+  /** Auto-scroll to focused element (default: true) */
+  scrollToFocus?: boolean;
+  /** Show scrollbar when content is scrollable (default: true) */
+  showScrollbar?: boolean;
 }
 
 export function ScrollView({
@@ -28,6 +33,8 @@ export function ScrollView({
   defaultScrollOffset = 0,
   scrollStep = 1,
   disableKeyboard,
+  scrollToFocus = true,
+  showScrollbar = true,
 }: ScrollViewProps): React.JSX.Element {
   const isControlled = controlledOffset !== undefined;
   const [internalOffset, setInternalOffset] = useState(defaultScrollOffset);
@@ -37,13 +44,13 @@ export function ScrollView({
   const contentRef = useRef<GlyphNode | null>(null);
   const viewportLayout = useLayout(viewportRef);
   const contentLayout = useLayout(contentRef);
+  
+  const focusCtx = useContext(FocusContext);
+  const layoutCtx = useContext(LayoutContext);
 
   const viewportHeight = viewportLayout.innerHeight;
   const contentHeight = contentLayout.height;
   const maxOffset = Math.max(0, contentHeight - viewportHeight);
-
-  // Track last key + timestamp for "gg" detection
-  const lastKeyRef = useRef<{ name: string; time: number } | null>(null);
 
   const setOffset = useCallback(
     (next: number) => {
@@ -64,83 +71,132 @@ export function ScrollView({
     }
   }, [offset, maxOffset, setOffset]);
 
+  // Focus-aware scrolling: scroll to make focused element visible
+  useEffect(() => {
+    if (!scrollToFocus || !focusCtx || !layoutCtx || !contentRef.current) return;
+
+    const unsubscribe = focusCtx.onFocusChange((focusedId) => {
+      if (!focusedId || !contentRef.current) return;
+
+      // Find the focused node by walking the content tree
+      const findNode = (node: GlyphNode): GlyphNode | null => {
+        if (node.focusId === focusedId) return node;
+        for (const child of node.children) {
+          const found = findNode(child);
+          if (found) return found;
+        }
+        return null;
+      };
+
+      const focusedNode = findNode(contentRef.current);
+      if (!focusedNode) return; // Focused element is not inside this ScrollView
+
+      // Get layout of focused element relative to content
+      const focusedLayout = layoutCtx.getLayout(focusedNode);
+      const contentTopY = contentRef.current.layout?.y ?? 0;
+      
+      // Calculate element position relative to content top
+      const elementTop = focusedLayout.y - contentTopY;
+      const elementBottom = elementTop + focusedLayout.height;
+      
+      // Current visible range
+      const visibleTop = offset;
+      const visibleBottom = offset + viewportHeight;
+      
+      // Check if element is fully visible
+      if (elementTop < visibleTop) {
+        // Element is above visible area - scroll up
+        setOffset(elementTop);
+      } else if (elementBottom > visibleBottom) {
+        // Element is below visible area - scroll down
+        setOffset(elementBottom - viewportHeight);
+      }
+    });
+
+    return unsubscribe;
+  }, [scrollToFocus, focusCtx, layoutCtx, offset, viewportHeight, setOffset]);
+
   useInput((key: Key) => {
     if (disableKeyboard) return;
 
     const halfPage = Math.max(1, Math.floor(viewportHeight / 2));
+    const fullPage = Math.max(1, viewportHeight);
 
-    // Vim "gg" detection: two "g" presses within 500ms
-    if (key.sequence === "g" && !key.ctrl && !key.alt) {
-      const now = Date.now();
-      const last = lastKeyRef.current;
-      if (last && last.name === "g" && now - last.time < 500) {
-        setOffset(0);
-        lastKeyRef.current = null;
-        return;
-      }
-      lastKeyRef.current = { name: "g", time: now };
-      return;
-    }
-    lastKeyRef.current = null;
-
+    // Check if a text input is likely focused (skip conflicting vim keys)
+    // We use Page Up/Down which never conflict with text inputs
+    
     switch (key.name) {
-      // Arrow keys
-      case "up":
-        setOffset(offset - scrollStep);
-        break;
-      case "down":
-        setOffset(offset + scrollStep);
-        break;
-      // Page keys
+      // Page keys - always safe, inputs don't use these
       case "pageup":
-        setOffset(offset - Math.max(1, viewportHeight));
+        setOffset(offset - fullPage);
         break;
       case "pagedown":
-        setOffset(offset + Math.max(1, viewportHeight));
-        break;
-      // Home / End
-      case "home":
-        setOffset(0);
-        break;
-      case "end":
-        setOffset(maxOffset);
+        setOffset(offset + fullPage);
         break;
       default:
-        // Vim keys
-        if (key.sequence === "k") {
-          setOffset(offset - scrollStep);
-        } else if (key.sequence === "j") {
-          setOffset(offset + scrollStep);
-        } else if (key.sequence === "G") {
-          setOffset(maxOffset);
-        } else if (key.name === "d" && key.ctrl) {
-          setOffset(offset + halfPage);
-        } else if (key.name === "u" && key.ctrl) {
-          setOffset(offset - halfPage);
-        } else if (key.name === "f" && key.ctrl) {
-          setOffset(offset + Math.max(1, viewportHeight));
-        } else if (key.name === "b" && key.ctrl) {
-          setOffset(offset - Math.max(1, viewportHeight));
+        // Ctrl combinations that don't conflict with input editing
+        if (key.ctrl) {
+          if (key.name === "d") {
+            // Ctrl+D - half page down (inputs don't use this)
+            setOffset(offset + halfPage);
+          } else if (key.name === "u") {
+            // Ctrl+U - half page up 
+            // Note: conflicts with input's "delete to line start"
+            // Only scroll if Shift is also held
+            if (key.shift) {
+              setOffset(offset - halfPage);
+            }
+          } else if (key.name === "f") {
+            // Ctrl+F - full page down
+            setOffset(offset + fullPage);
+          } else if (key.name === "b") {
+            // Ctrl+B - full page up
+            setOffset(offset - fullPage);
+          }
         }
         break;
     }
   }, [offset, scrollStep, viewportHeight, maxOffset, disableKeyboard, setOffset]);
 
-  // Outer viewport: user styles + clip. The content is absolutely positioned
-  // inside, so it doesn't inflate the viewport's size.
+  // Extract padding from the user style — it must live on the inner content
+  // wrapper, not the outer viewport.  The clip region is the outer box's
+  // *content area* (after border + padding).  The inner absolute child is
+  // positioned relative to the *padding box* (after border only).  If padding
+  // stays on the outer box, the first columns/rows of content fall outside the
+  // clip and get cut off.
+  const {
+    padding: _pad,
+    paddingX: _px,
+    paddingY: _py,
+    paddingTop: _pt,
+    paddingRight: _pr,
+    paddingBottom: _pb,
+    paddingLeft: _pl,
+    ...styleRest
+  } = style ?? {};
+
+  // Outer viewport: user styles (minus padding) + clip.
   const outerStyle: Style = {
-    ...style,
+    ...styleRest,
     clip: true,
   };
 
   // Inner content: absolutely positioned to fill viewport width,
-  // shifted up by scrollOffset. Height is determined by children.
+  // shifted up by scrollOffset. Padding lives here so text is indented
+  // without being clipped.
   const innerStyle: Style = {
     position: "absolute" as const,
     top: -offset,
     left: 0,
     right: 0,
     flexDirection: "column" as const,
+    ...(_pad !== undefined && { padding: _pad }),
+    ...(_px !== undefined && { paddingX: _px }),
+    ...(_py !== undefined && { paddingY: _py }),
+    ...(_pt !== undefined && { paddingTop: _pt }),
+    ...(_pr !== undefined && { paddingRight: _pr }),
+    ...(_pb !== undefined && { paddingBottom: _pb }),
+    ...(_pl !== undefined && { paddingLeft: _pl }),
   };
 
   return React.createElement(

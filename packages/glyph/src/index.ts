@@ -30,6 +30,12 @@ export { Spinner } from "./components/Spinner.js";
 export type { SpinnerProps } from "./components/Spinner.js";
 export { ToastHost, useToast } from "./components/Toast.js";
 export type { ToastHostProps, Toast, ToastVariant, ToastPosition } from "./components/Toast.js";
+export { Select } from "./components/Select.js";
+export type { SelectProps, SelectItem } from "./components/Select.js";
+export { Checkbox } from "./components/Checkbox.js";
+export type { CheckboxProps } from "./components/Checkbox.js";
+export { Radio } from "./components/Radio.js";
+export type { RadioProps, RadioItem } from "./components/Radio.js";
 
 // Hooks
 export { useInput } from "./hooks/useInput.js";

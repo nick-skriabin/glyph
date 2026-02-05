@@ -104,6 +104,29 @@ export class Terminal {
     this.exitRawMode();
   }
 
+  /** Restore terminal state for background suspension (does NOT mark as cleaned up). */
+  suspend(): void {
+    if (this.escFlushTimer !== null) {
+      clearTimeout(this.escFlushTimer);
+      this.escFlushTimer = null;
+    }
+    this.oscState = "normal";
+    this.oscAccum = "";
+
+    this.resetStyles();
+    this.showCursor();
+    this.exitAltScreen();
+    this.exitRawMode();
+  }
+
+  /** Re-enter raw mode and alt screen after SIGCONT resume. */
+  resume(): void {
+    this.enterRawMode();
+    this.enterAltScreen();
+    this.hideCursor();
+    this.clearScreen();
+  }
+
   // ---- Data handling with OSC filtering ----
 
   private attachStdinListener(): void {

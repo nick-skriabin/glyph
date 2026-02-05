@@ -35,7 +35,7 @@ Build real terminal applications with React. Glyph provides a full component mod
 | | |
 |---|---|
 | **Flexbox Layout** | Full CSS-like flexbox via Yoga &mdash; rows, columns, wrapping, alignment, gaps, padding |
-| **Rich Components** | Box, Text, Input, Button, Select, ScrollView, List, Menu, Progress, Spinner, Toasts, Portal |
+| **Rich Components** | Box, Text, Input, Button, Checkbox, Radio, Select, ScrollView, List, Menu, Progress, Spinner, Toasts, Portal |
 | **Focus System** | Tab navigation, focus scopes, focus trapping for modals |
 | **Keyboard Input** | `useInput` hook, declarative `<Keybind>` component, vim-style bindings |
 | **Smart Rendering** | Double-buffered framebuffer with character-level diffing &mdash; only changed cells are written |
@@ -124,9 +124,12 @@ Text input field with cursor and placeholder support.
   value={text}
   onChange={setText}
   placeholder="Type here..."
-  style={{ border: "single", borderColor: "cyan" }}
+  style={{ bg: "blackBright", paddingX: 1 }}
+  focusedStyle={{ bg: "white", color: "black" }}
 />
 ```
+
+Supports `multiline` for multi-line editing. The cursor is always visible when focused, with inverted colors for clarity.
 
 ### `<Button>`
 
@@ -143,6 +146,45 @@ Focusable button with press handling and visual feedback.
 ```
 
 Buttons participate in the focus system automatically. Press `Enter` or `Space` to activate.
+
+### `<Checkbox>`
+
+Toggle checkbox with label support.
+
+```tsx
+const [agreed, setAgreed] = useState(false);
+
+<Checkbox
+  checked={agreed}
+  onChange={setAgreed}
+  label="I agree to the terms"
+  focusedStyle={{ color: "cyan" }}
+/>
+```
+
+Focusable. Press `Enter` or `Space` to toggle. Supports custom `checkedChar` and `uncheckedChar` props.
+
+### `<Radio>`
+
+Radio button group for single selection from multiple options.
+
+```tsx
+const [theme, setTheme] = useState<string>("dark");
+
+<Radio
+  items={[
+    { label: "Light", value: "light" },
+    { label: "Dark", value: "dark" },
+    { label: "System", value: "system" },
+  ]}
+  value={theme}
+  onChange={setTheme}
+  focusedItemStyle={{ color: "cyan" }}
+  selectedItemStyle={{ bold: true }}
+/>
+```
+
+Focusable. Navigate with `Up`/`Down`/`Left`/`Right`/`Tab`/`Shift+Tab`, select with `Enter`/`Space`. Supports `direction` prop (`"column"` or `"row"`), custom `selectedChar` and `unselectedChar`.
 
 ### `<ScrollView>`
 
@@ -181,7 +223,7 @@ Keyboard-navigable selection list with a render callback.
 />
 ```
 
-Focusable. `Up`/`Down` to navigate, `Enter` to select. Disabled indices are skipped.
+Focusable. `Up`/`Down`/`j`/`k` to navigate, `G` to jump to bottom, `gg` to jump to top, `Enter` to select. Disabled indices are skipped.
 
 ### `<Menu>`
 
@@ -464,8 +506,9 @@ pnpm --filter modal-input dev       # Modal, input, focus trapping
 pnpm --filter scrollview-demo dev   # Scrollable content
 pnpm --filter list-demo dev         # Keyboard-navigable list
 pnpm --filter menu-demo dev         # Styled menu
-pnpm --filter select-demo dev      # Dropdown select with search
-pnpm --filter dashboard dev        # Full task manager (all components)
+pnpm --filter select-demo dev       # Dropdown select with search
+pnpm --filter forms-demo dev        # Checkbox and Radio inputs
+pnpm --filter dashboard dev         # Full task manager (all components)
 pnpm --filter showcase dev          # Progress, Spinner, Toasts
 ```
 

@@ -272,6 +272,16 @@ export function render(
         return;
       }
 
+      // Global: ctrl+z suspends (background the process)
+      // 1. SIGSTOP not SIGTSTP — Node.js ignores SIGTSTP by default.
+      // 2. pid 0 = entire process group, so the shell sees the foreground
+      //    job as stopped (handles bun→tsx→node chains correctly).
+      if (key.ctrl && key.name === "z") {
+        terminal.suspend();
+        process.kill(0, "SIGSTOP");
+        return;
+      }
+
       // Tab navigation
       if (key.name === "tab" && !key.ctrl && !key.alt) {
         if (key.shift) {
@@ -305,6 +315,14 @@ export function render(
     fullRedraw = true;
     scheduleRender();
   });
+
+  // ---- SIGCONT: resume after Ctrl+Z suspend ----
+  const handleSigcont = () => {
+    terminal.resume();
+    fullRedraw = true;
+    scheduleRender();
+  };
+  process.on("SIGCONT", handleSigcont);
 
   // ---- Create React tree ----
   const wrappedElement = React.createElement(
@@ -347,6 +365,7 @@ export function render(
       reconciler.updateContainer(null, root, null, null);
       removeDataListener();
       removeResizeListener();
+      process.off("SIGCONT", handleSigcont);
       terminal.cleanup();
     },
     exit(code?: number) {

@@ -44,11 +44,11 @@ export function useToast(): (toast: Omit<Toast, "id">) => void {
 
 // ---- Variant colors ----
 
-const VARIANT_COLORS: Record<ToastVariant, { border: Color; title: Color }> = {
-  info: { border: "cyan", title: "cyanBright" },
-  success: { border: "green", title: "greenBright" },
-  warning: { border: "yellow", title: "yellowBright" },
-  error: { border: "red", title: "redBright" },
+const VARIANT_COLORS: Record<ToastVariant, { bg: Color; title: Color; text: Color }> = {
+  info: { bg: "blackBright", title: "cyanBright", text: "white" },
+  success: { bg: "blackBright", title: "greenBright", text: "white" },
+  warning: { bg: "blackBright", title: "yellowBright", text: "white" },
+  error: { bg: "blackBright", title: "redBright", text: "white" },
 };
 
 // ---- ToastHost ----
@@ -125,7 +125,7 @@ export function ToastHost({
     innerChildren.push(
       React.createElement("text" as any, {
         key: "msg",
-        style: { color: "white" },
+        style: { color: colors.text },
       }, toast.message),
     );
 
@@ -134,10 +134,7 @@ export function ToastHost({
       {
         key: toast.id,
         style: {
-          border: "round" as const,
-          borderColor: colors.border,
-          bg: "black" as const,
-          padding: 0,
+          bg: colors.bg,
           paddingX: 1,
           flexDirection: "column" as const,
           minWidth: 20,

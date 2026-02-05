@@ -233,51 +233,157 @@ function paintInput(
   const placeholder: string = node.props.placeholder ?? "";
   const displayText = value || placeholder;
   const isPlaceholder = !value && !!placeholder;
+  const multiline: boolean = node.props.multiline ?? false;
   const inherited = getInheritedTextStyle(node);
 
   const autoFg = autoContrastFg(inherited.color, inherited.bg);
+  // For placeholder: use a dimmed contrast color based on background
+  // Light bg -> dark gray placeholder, dark bg -> light gray placeholder
+  const placeholderFg: Color = inherited.bg 
+    ? (isLightColor(inherited.bg) ? "blackBright" : "whiteBright")
+    : "blackBright";
   const fg = isPlaceholder
-    ? (node.style.color ?? inherited.color ?? "blackBright")
+    ? placeholderFg
     : (autoFg ?? inherited.color ?? node.style.color);
+  const textFg = isPlaceholder ? placeholderFg : fg;
+  // Force dim for placeholder text to make it visually distinct
+  const textDim = isPlaceholder ? true : inherited.dim;
 
-  // Draw text
-  let col = 0;
-  for (const char of displayText) {
-    if (col >= innerWidth) break;
-    const charWidth = stringWidth(char);
-    if (charWidth > 0) {
-      setClipped(
-        fb, clip,
-        innerX + col, innerY,
-        char,
-        isPlaceholder ? "blackBright" : fg,
-        inherited.bg,
-        inherited.bold,
-        inherited.dim,
-        inherited.italic,
-        inherited.underline,
-      );
+  if (multiline && !isPlaceholder) {
+    // ── Multiline rendering with wrapping ─────────────────────
+    const wrapMode = node.style.wrap ?? "wrap";
+    const rawLines = displayText.split("\n");
+    const wrappedLines = wrapLines(rawLines, innerWidth, wrapMode);
+
+    // Convert flat cursor position to screen (wrappedLine, col)
+    let cursorScreenLine = 0;
+    let cursorScreenCol = 0;
+    if (cursorInfo && cursorInfo.nodeId === node.focusId) {
+      const pos = cursorInfo.position;
+      
+      // Find which logical line the cursor is on
+      let logicalLine = 0;
+      let offsetInLogicalLine = pos;
+      let runningPos = 0;
+      
+      for (let i = 0; i < rawLines.length; i++) {
+        const lineLen = rawLines[i]!.length;
+        if (pos <= runningPos + lineLen) {
+          logicalLine = i;
+          offsetInLogicalLine = pos - runningPos;
+          break;
+        }
+        runningPos += lineLen + 1; // +1 for newline
+      }
+      
+      // Count wrapped lines before this logical line
+      let wrappedLinesBefore = 0;
+      for (let i = 0; i < logicalLine; i++) {
+        wrappedLinesBefore += wrapLines([rawLines[i]!], innerWidth, wrapMode).length;
+      }
+      
+      // Wrap the current logical line and find cursor position within it
+      const wrappedCurrentLine = wrapLines([rawLines[logicalLine]!], innerWidth, wrapMode);
+      let charsProcessed = 0;
+      let subLineIdx = 0;
+      
+      for (let i = 0; i < wrappedCurrentLine.length; i++) {
+        const subLine = wrappedCurrentLine[i]!;
+        if (offsetInLogicalLine <= charsProcessed + subLine.length) {
+          subLineIdx = i;
+          break;
+        }
+        charsProcessed += subLine.length;
+      }
+      
+      cursorScreenLine = wrappedLinesBefore + subLineIdx;
+      cursorScreenCol = stringWidth(rawLines[logicalLine]!.slice(charsProcessed, charsProcessed + (offsetInLogicalLine - charsProcessed)));
     }
-    col += charWidth;
-  }
 
-  // Cursor
-  if (cursorInfo && cursorInfo.nodeId === node.focusId) {
-    const cursorCol = Math.min(cursorInfo.position, innerWidth - 1);
-    const cursorX = innerX + cursorCol;
-    if (isInClip(cursorX, innerY, clip) && cursorX < innerX + innerWidth) {
-      const existing = fb.get(cursorX, innerY);
-      if (existing) {
-        // Invert cell for cursor visibility
+    // Auto-scroll to keep cursor visible
+    const scrollOffset = Math.max(0, cursorScreenLine - innerHeight + 1);
+
+    // Render visible wrapped lines
+    for (let rowIdx = 0; rowIdx < innerHeight; rowIdx++) {
+      const lineNum = scrollOffset + rowIdx;
+      if (lineNum >= wrappedLines.length) break;
+      const line = wrappedLines[lineNum]!;
+      let col = 0;
+      for (const char of line) {
+        if (col >= innerWidth) break;
+        const charWidth = stringWidth(char);
+        if (charWidth > 0) {
+          setClipped(
+            fb, clip,
+            innerX + col, innerY + rowIdx,
+            char,
+            textFg, inherited.bg,
+            inherited.bold, textDim, inherited.italic, inherited.underline,
+          );
+        }
+        col += charWidth;
+      }
+    }
+
+    // Cursor - always show when focused
+    if (cursorInfo && cursorInfo.nodeId === node.focusId) {
+      const screenRow = cursorScreenLine - scrollOffset;
+      if (screenRow >= 0 && screenRow < innerHeight) {
+        const cCol = Math.min(cursorScreenCol, innerWidth - 1);
+        const cursorX = innerX + cCol;
+        const cursorY = innerY + screenRow;
+        if (isInClip(cursorX, cursorY, clip) && cursorX < innerX + innerWidth) {
+          const existing = fb.get(cursorX, cursorY);
+          // Use block cursor with inverted colors for visibility
+          const cursorChar = existing?.ch && existing.ch !== " " ? existing.ch : "▌";
+          const cursorFg = inherited.bg ?? "black";
+          const cursorBg = inherited.color ?? "white";
+          fb.setChar(
+            cursorX, cursorY,
+            cursorChar,
+            cursorFg,
+            cursorBg,
+            existing?.bold, existing?.dim, existing?.italic,
+            false,
+          );
+        }
+      }
+    }
+  } else {
+    // ── Single-line rendering ───────────────────────────────
+    let col = 0;
+    for (const char of displayText) {
+      if (col >= innerWidth) break;
+      const charWidth = stringWidth(char);
+      if (charWidth > 0) {
+        setClipped(
+          fb, clip,
+          innerX + col, innerY,
+          char,
+          textFg, inherited.bg,
+          inherited.bold, textDim, inherited.italic, inherited.underline,
+        );
+      }
+      col += charWidth;
+    }
+
+    // Cursor - always show when focused
+    if (cursorInfo && cursorInfo.nodeId === node.focusId) {
+      const cursorCol = Math.min(cursorInfo.position, innerWidth - 1);
+      const cursorX = innerX + cursorCol;
+      if (isInClip(cursorX, innerY, clip) && cursorX < innerX + innerWidth) {
+        const existing = fb.get(cursorX, innerY);
+        // Use block cursor with inverted colors for visibility
+        const cursorChar = existing?.ch && existing.ch !== " " ? existing.ch : "▌";
+        const cursorFg = inherited.bg ?? "black";
+        const cursorBg = inherited.color ?? "white";
         fb.setChar(
           cursorX, innerY,
-          existing.ch === " " ? "▏" : existing.ch,
-          existing.bg ?? "black",
-          existing.fg ?? "white",
-          existing.bold,
-          existing.dim,
-          existing.italic,
-          true, // underline cursor
+          cursorChar,
+          cursorFg,
+          cursorBg,
+          existing?.bold, existing?.dim, existing?.italic,
+          false,
         );
       }
     }

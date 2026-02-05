@@ -1,0 +1,119 @@
+import React, { useContext, useEffect, useRef, useState } from "react";
+import type { Style, Key } from "../types/index.js";
+import { FocusContext, InputContext } from "../hooks/context.js";
+import type { GlyphNode } from "../reconciler/nodes.js";
+
+export interface CheckboxProps {
+  /** Whether the checkbox is checked */
+  checked: boolean;
+  /** Called when the checkbox is toggled */
+  onChange: (checked: boolean) => void;
+  /** Label text displayed next to the checkbox */
+  label?: string;
+  /** Style for the checkbox container */
+  style?: Style;
+  /** Style when focused */
+  focusedStyle?: Style;
+  /** Whether the checkbox is disabled */
+  disabled?: boolean;
+  /** Custom character for checked state (default: "✓") */
+  checkedChar?: string;
+  /** Custom character for unchecked state (default: " ") */
+  uncheckedChar?: string;
+}
+
+export function Checkbox({
+  checked,
+  onChange,
+  label,
+  style,
+  focusedStyle,
+  disabled,
+  checkedChar = "✓",
+  uncheckedChar = " ",
+}: CheckboxProps): React.JSX.Element {
+  const focusCtx = useContext(FocusContext);
+  const inputCtx = useContext(InputContext);
+  const nodeRef = useRef<GlyphNode | null>(null);
+  const focusIdRef = useRef<string | null>(null);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const checkedRef = useRef(checked);
+  checkedRef.current = checked;
+
+  const [isFocused, setIsFocused] = useState(false);
+
+  // Register with focus system
+  useEffect(() => {
+    if (!focusCtx || !focusIdRef.current || !nodeRef.current || disabled) return;
+    return focusCtx.register(focusIdRef.current, nodeRef.current);
+  }, [focusCtx, disabled]);
+
+  // Subscribe to focus changes
+  useEffect(() => {
+    if (!focusCtx || !focusIdRef.current) return;
+    const fid = focusIdRef.current;
+    setIsFocused(focusCtx.focusedId === fid);
+    return focusCtx.onFocusChange((newId) => {
+      setIsFocused(newId === fid);
+    });
+  }, [focusCtx]);
+
+  // Handle space/enter to toggle
+  useEffect(() => {
+    if (!inputCtx || !focusIdRef.current || disabled) return;
+    const fid = focusIdRef.current;
+
+    const handler = (key: Key): boolean => {
+      if (focusCtx?.focusedId !== fid) return false;
+      if (key.name === "return" || key.name === " " || key.sequence === " ") {
+        onChangeRef.current(!checkedRef.current);
+        return true;
+      }
+      return false;
+    };
+
+    return inputCtx.registerInputHandler(fid, handler);
+  }, [inputCtx, focusCtx, disabled]);
+
+  const mergedStyle: Style = {
+    flexDirection: "row",
+    gap: 1,
+    ...style,
+    ...(isFocused && focusedStyle ? focusedStyle : {}),
+  };
+
+  const boxChar = checked ? checkedChar : uncheckedChar;
+  const boxStyle: Style = {
+    color: disabled ? "blackBright" : (isFocused ? "white" : style?.color),
+  };
+  const labelStyle: Style = {
+    color: disabled ? "blackBright" : style?.color,
+  };
+
+  return React.createElement(
+    "box" as any,
+    {
+      style: mergedStyle,
+      focusable: !disabled,
+      ref: (node: any) => {
+        if (node) {
+          nodeRef.current = node;
+          focusIdRef.current = node.focusId;
+        }
+      },
+    },
+    React.createElement(
+      "text" as any,
+      { key: "box", style: boxStyle },
+      `[${boxChar}]`,
+    ),
+    label
+      ? React.createElement(
+          "text" as any,
+          { key: "label", style: labelStyle },
+          label,
+        )
+      : null,
+  );
+}
