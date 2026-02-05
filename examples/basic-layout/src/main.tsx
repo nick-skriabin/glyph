@@ -1,5 +1,5 @@
 import React from "react";
-import { render, Box, Text, useInput } from "glyph";
+import { render, Box, Text, useInput } from "@nick-skriabin/glyph";
 
 function App() {
   useInput((key) => {

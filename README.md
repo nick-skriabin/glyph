@@ -47,13 +47,13 @@ Build real terminal applications with React. Glyph provides a full component mod
 
 ```bash
 # npm
-npm install glyph react
+npm install @nick-skriabin/glyph react
 
 # pnpm
-pnpm add glyph react
+pnpm add @nick-skriabin/glyph react
 
 # bun
-bun add glyph react
+bun add @nick-skriabin/glyph react
 ```
 
 ---
@@ -62,7 +62,7 @@ bun add glyph react
 
 ```tsx
 import React from "react";
-import { render, Box, Text, Keybind, useApp } from "glyph";
+import { render, Box, Text, Keybind, useApp } from "@nick-skriabin/glyph";
 
 function App() {
   const { exit } = useApp();

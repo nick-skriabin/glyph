@@ -7,7 +7,7 @@
     "build": "echo 'no build needed'"
   },
   "dependencies": {
-    "glyph": "workspace:*",
+    "@nick-skriabin/glyph": "workspace:*",
     "react": "^19.0.0"
   },
   "devDependencies": {

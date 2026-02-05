@@ -17,7 +17,7 @@ importers:
 
   examples/basic-layout:
     dependencies:
-      glyph:
+      '@nick-skriabin/glyph':
         specifier: workspace:*
         version: link:../../packages/glyph
       react:
@@ -39,7 +39,7 @@ importers:
 
   examples/list-demo:
     dependencies:
-      glyph:
+      '@nick-skriabin/glyph':
         specifier: workspace:*
         version: link:../../packages/glyph
       react:
@@ -61,7 +61,7 @@ importers:
 
   examples/menu-demo:
     dependencies:
-      glyph:
+      '@nick-skriabin/glyph':
         specifier: workspace:*
         version: link:../../packages/glyph
       react:
@@ -83,7 +83,7 @@ importers:
 
   examples/modal-input:
     dependencies:
-      glyph:
+      '@nick-skriabin/glyph':
         specifier: workspace:*
         version: link:../../packages/glyph
       react:
@@ -105,7 +105,7 @@ importers:
 
   examples/scrollview-demo:
     dependencies:
-      glyph:
+      '@nick-skriabin/glyph':
         specifier: workspace:*
         version: link:../../packages/glyph
       react:

@@ -6,7 +6,7 @@ import {
   ScrollView,
   Keybind,
   useApp,
-} from "glyph";
+} from "@nick-skriabin/glyph";
 
 function App() {
   const { exit } = useApp();
