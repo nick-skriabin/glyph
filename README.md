@@ -200,9 +200,9 @@ Scrollable container with keyboard navigation and clipping.
 </ScrollView>
 ```
 
-**Keyboard:** Arrow keys, `j`/`k`, `Ctrl+d`/`Ctrl+u` (half-page), `Ctrl+f`/`Ctrl+b` (full page), `G` (end), `gg` (top), `Home`/`End`, `PageUp`/`PageDown`.
+**Keyboard:** `PageUp`/`PageDown`, `Ctrl+d`/`Ctrl+u` (half-page), `Ctrl+f`/`Ctrl+b` (full page).
 
-Supports controlled mode with `scrollOffset` and `onScroll` props.
+Shows a scrollbar when content exceeds viewport (disable with `showScrollbar={false}`). Supports controlled mode with `scrollOffset` and `onScroll` props.
 
 ### `<List>`
 

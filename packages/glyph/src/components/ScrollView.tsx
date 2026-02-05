@@ -199,6 +199,39 @@ export function ScrollView({
     ...(_pl !== undefined && { paddingLeft: _pl }),
   };
 
+  // Calculate scrollbar dimensions
+  const isScrollable = contentHeight > viewportHeight && viewportHeight > 0;
+  const scrollbarVisible = showScrollbar && isScrollable;
+  
+  // Scrollbar thumb size and position
+  const thumbHeight = Math.max(1, Math.floor((viewportHeight / contentHeight) * viewportHeight));
+  const scrollableRange = contentHeight - viewportHeight;
+  const thumbPosition = scrollableRange > 0 
+    ? Math.floor((offset / scrollableRange) * (viewportHeight - thumbHeight))
+    : 0;
+
+  // Build scrollbar characters
+  const scrollbarChars: string[] = [];
+  if (scrollbarVisible) {
+    for (let i = 0; i < viewportHeight; i++) {
+      if (i >= thumbPosition && i < thumbPosition + thumbHeight) {
+        scrollbarChars.push("█");
+      } else {
+        scrollbarChars.push("░");
+      }
+    }
+  }
+
+  // Scrollbar style - positioned on the right edge
+  const scrollbarStyle: Style = {
+    position: "absolute" as const,
+    top: 0,
+    right: 0,
+    width: 1,
+    height: viewportHeight,
+    flexDirection: "column" as const,
+  };
+
   return React.createElement(
     "box" as any,
     {
@@ -207,15 +240,30 @@ export function ScrollView({
         viewportRef.current = node ?? null;
       },
     },
+    // Content
     React.createElement(
       "box" as any,
       {
-        style: innerStyle,
+        style: {
+          ...innerStyle,
+          // Reserve space for scrollbar when visible
+          paddingRight: scrollbarVisible ? (innerStyle.paddingRight ?? 0) + 1 : innerStyle.paddingRight,
+        },
         ref: (node: any) => {
           contentRef.current = node ?? null;
         },
       },
       children,
+    ),
+    // Scrollbar
+    scrollbarVisible && React.createElement(
+      "box" as any,
+      { style: scrollbarStyle },
+      React.createElement(
+        "text" as any,
+        { style: { color: "blackBright" as const } },
+        scrollbarChars.join("\n"),
+      ),
     ),
   );
 }
