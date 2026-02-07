@@ -164,6 +164,8 @@ export interface InputProps {
   focusedStyle?: Style;
   /** Enable multiline editing (Enter inserts newlines, Up/Down navigate lines). */
   multiline?: boolean;
+  /** Automatically focus this input when mounted */
+  autoFocus?: boolean;
 }
 
 export function Input(props: InputProps): React.JSX.Element {
@@ -176,6 +178,7 @@ export function Input(props: InputProps): React.JSX.Element {
     style,
     focusedStyle,
     multiline,
+    autoFocus,
   } = props;
   const [internalValue, setInternalValue] = useState(defaultValue);
   const [cursorPos, setCursorPos] = useState(defaultValue.length);
@@ -241,6 +244,13 @@ export function Input(props: InputProps): React.JSX.Element {
     if (!focusCtx || !focusIdRef.current || !nodeRef.current) return;
     return focusCtx.register(focusIdRef.current, nodeRef.current);
   }, [focusCtx]);
+
+  // Auto-focus on mount if requested
+  useEffect(() => {
+    if (autoFocus && focusCtx && focusIdRef.current) {
+      focusCtx.requestFocus(focusIdRef.current);
+    }
+  }, [autoFocus, focusCtx]);
 
   // Subscribe to focus changes for reactive visual state
   useEffect(() => {
