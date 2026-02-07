@@ -74,6 +74,9 @@ export function ScrollView({
   const contentHeight = contentLayout.height;
   const maxOffset = Math.max(0, contentHeight - viewportHeight);
 
+  // Always clamp the effective offset used for rendering
+  const effectiveOffset = Math.max(0, Math.min(offset, maxOffset));
+
   const setOffset = useCallback(
     (next: number) => {
       const clamped = Math.max(0, Math.min(next, maxOffset));
@@ -232,7 +235,7 @@ export function ScrollView({
   // without being clipped.
   const innerStyle: Style = {
     position: "absolute" as const,
-    top: -offset,
+    top: -effectiveOffset,
     left: 0,
     right: 0,
     flexDirection: "column" as const,
@@ -253,7 +256,7 @@ export function ScrollView({
   const thumbHeight = Math.max(1, Math.floor((viewportHeight / contentHeight) * viewportHeight));
   const scrollableRange = contentHeight - viewportHeight;
   const thumbPosition = scrollableRange > 0 
-    ? Math.floor((offset / scrollableRange) * (viewportHeight - thumbHeight))
+    ? Math.floor((effectiveOffset / scrollableRange) * (viewportHeight - thumbHeight))
     : 0;
 
   // Build scrollbar characters
