@@ -158,6 +158,16 @@ export interface InputProps {
   onChange?: (value: string) => void;
   /** Called on every key press. Return `true` to prevent default handling. */
   onKeyPress?: (key: Key) => boolean | void;
+  /** 
+   * Called before a value change is applied. Useful for input masking/validation.
+   * @param newValue - The proposed new value
+   * @param oldValue - The current value
+   * @returns 
+   *   - `string` to use a different value (and cursor moves to end of returned string)
+   *   - `false` to reject the change entirely
+   *   - `undefined` to accept the change as-is
+   */
+  onBeforeChange?: (newValue: string, oldValue: string) => string | false | void;
   placeholder?: string;
   style?: Style;
   /** Style when focused (merged with style) */
@@ -174,6 +184,7 @@ export function Input(props: InputProps): React.JSX.Element {
     defaultValue = "",
     onChange,
     onKeyPress,
+    onBeforeChange,
     placeholder,
     style,
     focusedStyle,
@@ -228,6 +239,7 @@ export function Input(props: InputProps): React.JSX.Element {
     isControlled,
     onChange,
     onKeyPress,
+    onBeforeChange,
     multiline: multiline ?? false,
     innerWidth,
   });
@@ -235,6 +247,7 @@ export function Input(props: InputProps): React.JSX.Element {
     isControlled,
     onChange,
     onKeyPress,
+    onBeforeChange,
     multiline: multiline ?? false,
     innerWidth,
   };
@@ -278,6 +291,7 @@ export function Input(props: InputProps): React.JSX.Element {
         isControlled: ctrl,
         onChange: cb,
         onKeyPress: onKey,
+        onBeforeChange: onBefore,
         multiline: ml,
       } = stateRef.current;
       
@@ -294,12 +308,29 @@ export function Input(props: InputProps): React.JSX.Element {
       if (key.name === "escape") return false;
 
       // Helper to update value and cursor synchronously
+      // Calls onBeforeChange if provided, allowing masking/validation
       const updateValue = (newVal: string, newCursor: number) => {
-        workingValueRef.current = newVal;
-        workingCursorRef.current = newCursor;
-        if (!ctrl) setInternalValue(newVal);
-        cb?.(newVal);
-        setCursorPos(newCursor);
+        let finalVal = newVal;
+        let finalCursor = newCursor;
+        
+        if (onBefore) {
+          const result = onBefore(newVal, val);
+          if (result === false) {
+            // Reject the change entirely
+            return;
+          }
+          if (typeof result === "string") {
+            // Use the modified value, cursor goes to end
+            finalVal = result;
+            finalCursor = result.length;
+          }
+        }
+        
+        workingValueRef.current = finalVal;
+        workingCursorRef.current = finalCursor;
+        if (!ctrl) setInternalValue(finalVal);
+        cb?.(finalVal);
+        setCursorPos(finalCursor);
       };
       
       const updateCursor = (newCursor: number) => {
