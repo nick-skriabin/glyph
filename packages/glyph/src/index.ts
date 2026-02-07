@@ -43,6 +43,10 @@ export { useFocus } from "./hooks/useFocus.js";
 export { useLayout } from "./hooks/useLayout.js";
 export { useApp } from "./hooks/useApp.js";
 
+// Utilities
+export { createMask, masks } from "./utils/mask.js";
+export type { MaskOptions } from "./utils/mask.js";
+
 // Types
 export type {
   Style,

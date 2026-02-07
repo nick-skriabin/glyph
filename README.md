@@ -132,7 +132,23 @@ Text input field with cursor and placeholder support.
 />
 ```
 
-Supports `multiline` for multi-line editing. The cursor is always visible when focused, with inverted colors for clarity.
+Supports `multiline` for multi-line editing, `autoFocus` for automatic focus on mount. The cursor is always visible when focused.
+
+**Input masking** with `onBeforeChange` for validation/formatting:
+
+```tsx
+import { createMask, masks } from "@nick-skriabin/glyph";
+
+// Pre-built masks
+<Input onBeforeChange={masks.usPhone} placeholder="(___) ___-____" />
+<Input onBeforeChange={masks.creditCard} placeholder="____ ____ ____ ____" />
+
+// Custom masks: 9=digit, a=letter, *=alphanumeric
+const licensePlate = createMask("aaa-9999");
+<Input onBeforeChange={licensePlate} placeholder="___-____" />
+```
+
+Available masks: `usPhone`, `intlPhone`, `creditCard`, `dateUS`, `dateEU`, `dateISO`, `time`, `timeFull`, `ssn`, `zip`, `zipPlus4`, `ipv4`, `mac`.
 
 ### `<Button>`
 
@@ -547,6 +563,7 @@ pnpm --filter list-demo dev         # Keyboard-navigable list
 pnpm --filter menu-demo dev         # Styled menu
 pnpm --filter select-demo dev       # Dropdown select with search
 pnpm --filter forms-demo dev        # Checkbox and Radio inputs
+pnpm --filter masked-input dev      # Input masks (phone, credit card, etc.)
 pnpm --filter dashboard dev         # Full task manager (all components)
 pnpm --filter showcase dev          # Progress, Spinner, Toasts
 ```

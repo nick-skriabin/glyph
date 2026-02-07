@@ -61,6 +61,19 @@
         "typescript": "^5.5",
       },
     },
+    "examples/masked-input": {
+      "name": "masked-input",
+      "dependencies": {
+        "@nick-skriabin/glyph": "workspace:*",
+        "react": "^19.0.0",
+      },
+      "devDependencies": {
+        "@types/node": "^20",
+        "@types/react": "^19",
+        "tsx": "^4",
+        "typescript": "^5.5",
+      },
+    },
     "examples/menu-demo": {
       "name": "menu-demo",
       "dependencies": {
@@ -321,6 +334,8 @@
     "load-tsconfig": ["load-tsconfig@0.2.5", "", {}, "sha512-IXO6OCs9yg8tMKzfPZ1YmheJbZCiEsnBdcB03l0OcfK9prKnJb96siuHCr5Fl37/yo9DnKU+TLpxzTUspw9shg=="],
 
     "magic-string": ["magic-string@0.30.21", "", { "dependencies": { "@jridgewell/sourcemap-codec": "1.5.5" } }, "sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ=="],
+
+    "masked-input": ["masked-input@workspace:examples/masked-input"],
 
     "menu-demo": ["menu-demo@workspace:examples/menu-demo"],
 
