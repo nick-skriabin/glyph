@@ -86,13 +86,34 @@ export function render(
   }
 
   function getActiveFocusableIds(): string[] {
-    let ids = focusOrder;
+    let ids = [...focusOrder]; // Copy to avoid mutating original
+    
+    // Filter by trap if active
     if (trapStack.length > 0) {
       const trap = trapStack[trapStack.length - 1]!;
       ids = ids.filter((id) => trap.has(id));
     }
+    
     // Filter out skippable (disabled) elements
-    return ids.filter((id) => !skippableIds.has(id));
+    ids = ids.filter((id) => !skippableIds.has(id));
+    
+    // Sort by visual position (top-to-bottom, left-to-right) - like web DOM order
+    ids.sort((a, b) => {
+      const nodeA = focusRegistry.get(a);
+      const nodeB = focusRegistry.get(b);
+      if (!nodeA || !nodeB) return 0;
+      
+      const layoutA = nodeA.layout;
+      const layoutB = nodeB.layout;
+      
+      // Compare Y first (row), then X (column)
+      if (layoutA.y !== layoutB.y) {
+        return layoutA.y - layoutB.y;
+      }
+      return layoutA.x - layoutB.x;
+    });
+    
+    return ids;
   }
 
   const focusContextValue: FocusContextValue = {
@@ -108,16 +129,21 @@ export function render(
       if (trapStack.length > 0) {
         trapStack[trapStack.length - 1]!.add(id);
       }
-      // Auto-focus first item if nothing focused
+      // Auto-focus first item if nothing focused (by visual order)
       if (focusedId === null) {
-        setFocusedId(id);
+        const activeIds = getActiveFocusableIds();
+        if (activeIds.length > 0) {
+          setFocusedId(activeIds[0]!);
+        }
       }
       return () => {
         focusRegistry.delete(id);
         const idx = focusOrder.indexOf(id);
         if (idx !== -1) focusOrder.splice(idx, 1);
         if (focusedId === id) {
-          setFocusedId(focusOrder[0] ?? null);
+          // Focus first by visual order
+          const activeIds = getActiveFocusableIds();
+          setFocusedId(activeIds[0] ?? null);
         }
       };
     },
