@@ -64,6 +64,9 @@ export function Select({
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
+  // Track node identity for re-registration when node changes
+  const [nodeVersion, setNodeVersion] = useState(0);
+
   const [isFocused, setIsFocused] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
@@ -106,10 +109,11 @@ export function Select({
   }, [isFocused, isOpen]);
 
   // --- Focus registration ---
+  // Re-register when node changes (e.g., when items go from empty to populated)
   useEffect(() => {
     if (!focusCtx || !focusIdRef.current || !nodeRef.current || disabled) return;
     return focusCtx.register(focusIdRef.current, nodeRef.current);
-  }, [focusCtx, disabled]);
+  }, [focusCtx, disabled, nodeVersion]);
 
   useEffect(() => {
     if (!focusCtx || !focusIdRef.current) return;
@@ -481,9 +485,14 @@ export function Select({
         style: triggerStyle,
         focusable: !disabled,
         ref: (node: any) => {
+          const prevFocusId = focusIdRef.current;
           nodeRef.current = node ?? null;
           if (node) {
             focusIdRef.current = node.focusId;
+            // Trigger re-registration if focusId changed
+            if (prevFocusId !== node.focusId) {
+              setNodeVersion((v) => v + 1);
+            }
           }
         },
       },
