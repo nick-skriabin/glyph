@@ -48,6 +48,12 @@ const DYNAMIC_ITEMS = [
   { label: "Option C", value: "c" },
 ];
 
+const CONDITIONAL_ITEMS = [
+  { label: "Calendar 1", value: "cal1" },
+  { label: "Calendar 2 (primary)", value: "cal2" },
+  { label: "Calendar 3", value: "cal3" },
+];
+
 function App() {
   const { exit } = useApp();
   const [lang, setLang] = useState<string | undefined>(undefined);
@@ -59,11 +65,24 @@ function App() {
   const [dynamicValue, setDynamicValue] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   
+  // Conditional select - mimics user's implementation where Select doesn't exist until items load
+  const [conditionalItems, setConditionalItems] = useState<typeof CONDITIONAL_ITEMS>([]);
+  const [conditionalValue, setConditionalValue] = useState<string | undefined>(undefined);
+  
   useEffect(() => {
     const timer = setTimeout(() => {
       setDynamicItems(DYNAMIC_ITEMS);
       setIsLoading(false);
     }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+  
+  // Load conditional items after 3 seconds (separate from dynamic)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setConditionalItems(CONDITIONAL_ITEMS);
+      setConditionalValue(CONDITIONAL_ITEMS[0]?.value);
+    }, 3000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -140,13 +159,32 @@ function App() {
         </Box>
       </Box>
 
+      {/* Conditional Select - mimics user's calendar implementation */}
+      <Box style={{ flexDirection: "row", gap: 1, alignItems: "center" }}>
+        <Text style={{ color: "white", width: 12 }}>calendar</Text>
+        {conditionalItems.length > 0 ? (
+          <Select
+            items={conditionalItems}
+            value={conditionalValue}
+            onChange={setConditionalValue}
+            placeholder="Pick calendar..."
+            style={{ borderColor: "blue", width: 30 }}
+            focusedStyle={{ borderColor: "blueBright" }}
+            highlightColor="blue"
+          />
+        ) : (
+          <Text style={{ color: "white", dim: true }}>Loading...</Text>
+        )}
+      </Box>
+
       <Box style={{ flexDirection: "column", gap: 0 }}>
         <Text style={{ bold: true, color: "cyan" }}>Selection:</Text>
         <Text>
           {lang ? `Language: ${lang}` : "Language: (none)"} |{" "}
           {editor ? `Editor: ${editor}` : "Editor: (none)"} |{" "}
           {theme ? `Theme: ${theme}` : "Theme: (none)"} |{" "}
-          {dynamicValue ? `Dynamic: ${dynamicValue}` : "Dynamic: (none)"}
+          {dynamicValue ? `Dynamic: ${dynamicValue}` : "Dynamic: (none)"} |{" "}
+          {conditionalValue ? `Calendar: ${conditionalValue}` : "Calendar: (none)"}
         </Text>
       </Box>
 
