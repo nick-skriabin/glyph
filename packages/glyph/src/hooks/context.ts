@@ -20,6 +20,8 @@ export interface FocusContextValue {
   requestFocus(id: string): void;
   focusNext(): void;
   focusPrev(): void;
+  /** Mark an element as skippable during Tab navigation (e.g., disabled elements) */
+  setSkippable(id: string, skippable: boolean): void;
   trapIds: Set<string> | null;
   pushTrap(ids: Set<string>): () => void;
   onFocusChange(handler: (focusedId: string | null) => void): () => void;

@@ -106,11 +106,17 @@ export function Select({
   }, [isFocused, isOpen]);
 
   // --- Focus registration ---
-  // Include items.length to re-register when items change (e.g., dynamic loading)
+  // Always register on mount to maintain position in tab order
   useEffect(() => {
-    if (!focusCtx || !focusIdRef.current || !nodeRef.current || disabled) return;
+    if (!focusCtx || !focusIdRef.current || !nodeRef.current) return;
     return focusCtx.register(focusIdRef.current, nodeRef.current);
-  }, [focusCtx, disabled, items.length]);
+  }, [focusCtx]);
+  
+  // Mark as skippable when disabled - Tab will skip this element
+  useEffect(() => {
+    if (!focusCtx || !focusIdRef.current) return;
+    focusCtx.setSkippable(focusIdRef.current, !!disabled);
+  }, [focusCtx, disabled]);
 
   useEffect(() => {
     if (!focusCtx || !focusIdRef.current) return;
@@ -480,7 +486,9 @@ export function Select({
       "box" as any,
       {
         style: triggerStyle,
-        focusable: !disabled,
+        // Always focusable - disabled state is handled in input handler
+        // This ensures focusId is assigned on mount, even if initially disabled
+        focusable: true,
         ref: (node: any) => {
           if (node) {
             nodeRef.current = node;

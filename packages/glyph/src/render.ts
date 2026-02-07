@@ -71,6 +71,7 @@ export function render(
   let focusedId: string | null = null;
   const focusRegistry = new Map<string, GlyphNode>();
   const focusOrder: string[] = [];
+  const skippableIds = new Set<string>(); // Disabled/skippable elements during Tab
   let trapStack: Array<Set<string>> = [];
   const focusChangeHandlers = new Set<(id: string | null) => void>();
 
@@ -85,11 +86,13 @@ export function render(
   }
 
   function getActiveFocusableIds(): string[] {
+    let ids = focusOrder;
     if (trapStack.length > 0) {
       const trap = trapStack[trapStack.length - 1]!;
-      return focusOrder.filter((id) => trap.has(id));
+      ids = ids.filter((id) => trap.has(id));
     }
-    return focusOrder;
+    // Filter out skippable (disabled) elements
+    return ids.filter((id) => !skippableIds.has(id));
   }
 
   const focusContextValue: FocusContextValue = {
@@ -134,6 +137,20 @@ export function render(
       const currentIdx = focusedId ? ids.indexOf(focusedId) : 0;
       const prevIdx = (currentIdx - 1 + ids.length) % ids.length;
       setFocusedId(ids[prevIdx]!);
+    },
+    setSkippable(id: string, skippable: boolean) {
+      if (skippable) {
+        skippableIds.add(id);
+        // If this element is currently focused and now skippable, move focus
+        if (focusedId === id) {
+          const ids = getActiveFocusableIds();
+          if (ids.length > 0) {
+            setFocusedId(ids[0]!);
+          }
+        }
+      } else {
+        skippableIds.delete(id);
+      }
     },
     trapIds: null,
     pushTrap(ids: Set<string>) {
