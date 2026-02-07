@@ -224,12 +224,24 @@ export function ScrollView({
 
   // Outer viewport: user styles (minus padding) + clip.
   // Apply focusedStyle when ScrollView is directly focused.
-  // Use flexDirection: column so the spacer contributes to height.
+  // 
+  // The height is set to contentHeight so ScrollView hugs its content when short.
+  // flexShrink: 1 + minHeight: 0 allows it to shrink when parent constrains it.
+  // When constrained, scrolling kicks in.
+  
+  // Account for border when calculating intrinsic height
+  const hasBorder = styleRest.border != null && styleRest.border !== "none";
+  const borderHeight = hasBorder ? 2 : 0; // top + bottom border
+  const intrinsicHeight = contentHeight > 0 ? contentHeight + borderHeight : undefined;
+  
   const outerStyle: Style = {
     ...styleRest,
     ...(isSelfFocused ? focusedStyle : {}),
     clip: true,
-    flexDirection: "column" as const,
+    // Only set intrinsic height if user didn't specify explicit height or flexGrow
+    ...(styleRest.height === undefined && styleRest.flexGrow === undefined && intrinsicHeight !== undefined
+      ? { height: intrinsicHeight, flexShrink: styleRest.flexShrink ?? 1, minHeight: styleRest.minHeight ?? 0 }
+      : {}),
   };
 
   // Inner content: absolutely positioned to fill viewport width,
@@ -248,16 +260,6 @@ export function ScrollView({
     ...(_pr !== undefined && { paddingRight: _pr }),
     ...(_pb !== undefined && { paddingBottom: _pb }),
     ...(_pl !== undefined && { paddingLeft: _pl }),
-  };
-
-  // Spacer element: gives the viewport its natural height based on content.
-  // This is a non-absolute element that contributes to layout.
-  // Height is clamped to contentHeight so viewport hugs short content,
-  // but flexShrink allows it to shrink when parent constrains it.
-  const spacerStyle: Style = {
-    height: contentHeight > 0 ? contentHeight : undefined,
-    flexShrink: 1,
-    minHeight: 0,
   };
 
   // Calculate scrollbar dimensions
@@ -302,9 +304,6 @@ export function ScrollView({
       },
       ...(focusable ? { focusable: true, focusId } : {}),
     },
-    // Spacer: contributes to layout height so ScrollView hugs short content.
-    // When parent constrains height, spacer shrinks and scrolling kicks in.
-    React.createElement("box" as any, { style: spacerStyle }),
     // Content (absolutely positioned, scrolls via top offset)
     React.createElement(
       "box" as any,
