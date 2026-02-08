@@ -414,18 +414,50 @@ export function render(
     ),
   );
 
+  // Error handlers for React reconciler
+  const onUncaughtError = (error: Error, errorInfo: { componentStack?: string }) => {
+    if (debug) {
+      console.error("Uncaught error:", error);
+      if (errorInfo.componentStack) {
+        console.error("Component stack:", errorInfo.componentStack);
+      }
+    }
+  };
+
+  const onCaughtError = (error: Error, errorInfo: { componentStack?: string; errorBoundary?: unknown }) => {
+    // Error was caught by an Error Boundary - this is expected behavior
+    if (debug) {
+      console.error("Error caught by boundary:", error);
+      if (errorInfo.componentStack) {
+        console.error("Component stack:", errorInfo.componentStack);
+      }
+    }
+  };
+
+  const onRecoverableError = (error: Error, errorInfo: { componentStack?: string }) => {
+    if (debug) {
+      console.error("Recoverable error:", error);
+      if (errorInfo.componentStack) {
+        console.error("Component stack:", errorInfo.componentStack);
+      }
+    }
+  };
+
   // Create fiber root
-  const root = reconciler.createContainer(
+  // Cast to any because react-reconciler types don't match runtime API for error handlers
+  // Runtime API expects: (container, tag, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefault,
+  //                       identifierPrefix, onUncaughtError, onCaughtError, onRecoverableError, transitionCallbacks)
+  const root = (reconciler.createContainer as any)(
     container,
-    0, // ConcurrentRoot tag = 0 (LegacyRoot)
-    null,
-    false,
-    null,
-    "",
-    (err: Error) => {
-      if (debug) console.error("Recoverable error:", err);
-    },
-    null,
+    0, // LegacyRoot tag
+    null, // hydrationCallbacks
+    false, // isStrictMode
+    null, // concurrentUpdatesByDefaultOverride
+    "", // identifierPrefix
+    onUncaughtError,
+    onCaughtError,
+    onRecoverableError,
+    null, // transitionCallbacks
   );
 
   reconciler.updateContainer(wrappedElement, root, null, null);
