@@ -103,6 +103,7 @@ export interface Key {
   ctrl?: boolean;
   alt?: boolean;
   shift?: boolean;
+  meta?: boolean; // Super/Cmd/Win key
 }
 
 export interface RenderOptions {

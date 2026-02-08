@@ -25,6 +25,7 @@ interface KeyMatcher {
   ctrl: boolean;
   alt: boolean;
   shift: boolean;
+  meta: boolean;
 }
 
 function parseKeyDescriptor(descriptor: string): KeyMatcher {
@@ -35,6 +36,7 @@ function parseKeyDescriptor(descriptor: string): KeyMatcher {
     ctrl: parts.includes("ctrl"),
     alt: parts.includes("alt"),
     shift: parts.includes("shift"),
+    meta: parts.includes("meta") || parts.includes("cmd") || parts.includes("super") || parts.includes("win"),
   };
 }
 
@@ -43,6 +45,7 @@ function matchesKey(matcher: KeyMatcher, key: Key): boolean {
   if (matcher.ctrl !== !!key.ctrl) return false;
   if (matcher.alt !== !!key.alt) return false;
   if (matcher.shift !== !!key.shift) return false;
+  if (matcher.meta !== !!key.meta) return false;
   return true;
 }
 
