@@ -1,6 +1,7 @@
-import React from "react";
+import React, { forwardRef } from "react";
 import type { Style } from "../types/index.js";
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
+import type { GlyphNode } from "../reconciler/nodes.js";
 
 export interface BoxProps {
   style?: Style;
@@ -8,6 +9,8 @@ export interface BoxProps {
   focusable?: boolean;
 }
 
-export function Box({ children, style, focusable }: BoxProps): React.JSX.Element {
-  return React.createElement("box" as any, { style, focusable }, children);
-}
+export const Box = forwardRef<GlyphNode, BoxProps>(
+  function Box({ children, style, focusable }, ref): React.JSX.Element {
+    return React.createElement("box" as any, { style, focusable, ref }, children);
+  }
+);

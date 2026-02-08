@@ -452,8 +452,6 @@ export function Select({
       ? -(dropdownHeight) 
       : (triggerLayout.height || 1);
 
-    // Render dropdown with portal prop to escape ScrollView clipping
-    // The portal prop tells the painter to ignore parent clip boundaries
     dropdownElement = React.createElement(
       "box" as any,
       {
@@ -468,8 +466,6 @@ export function Select({
           flexDirection: "column" as const,
           ...dropdownStyle,
         },
-        // Escape parent clipping (e.g., ScrollView)
-        portal: true,
       },
       ...dropdownChildren,
     );
