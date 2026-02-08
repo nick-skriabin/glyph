@@ -7,7 +7,7 @@ export type { BoxProps } from "./components/Box.js";
 export { Text } from "./components/Text.js";
 export type { TextProps } from "./components/Text.js";
 export { Input } from "./components/Input.js";
-export type { InputProps } from "./components/Input.js";
+export type { InputProps, InputType } from "./components/Input.js";
 export { FocusScope } from "./components/FocusScope.js";
 export type { FocusScopeProps } from "./components/FocusScope.js";
 export { Spacer } from "./components/Spacer.js";
@@ -42,6 +42,8 @@ export type { DialogHostProps, AlertOptions, ConfirmOptions, DialogContextValue 
 // Hooks
 export { useInput } from "./hooks/useInput.js";
 export { useFocus } from "./hooks/useFocus.js";
+export { useFocusable } from "./hooks/useFocusable.js";
+export type { UseFocusableOptions, UseFocusableResult } from "./hooks/useFocusable.js";
 export { useLayout } from "./hooks/useLayout.js";
 export { useApp } from "./hooks/useApp.js";
 

@@ -152,6 +152,8 @@ function lineColToCursor(
 
 // ── Component ─────────────────────────────────────────────────
 
+export type InputType = "text" | "number";
+
 export interface InputProps {
   value?: string;
   defaultValue?: string;
@@ -176,6 +178,12 @@ export interface InputProps {
   multiline?: boolean;
   /** Automatically focus this input when mounted */
   autoFocus?: boolean;
+  /** 
+   * Input type for validation:
+   * - "text" (default): accepts any character
+   * - "number": only accepts digits, decimal point, and minus sign
+   */
+  type?: InputType;
 }
 
 export function Input(props: InputProps): React.JSX.Element {
@@ -190,6 +198,7 @@ export function Input(props: InputProps): React.JSX.Element {
     focusedStyle,
     multiline,
     autoFocus,
+    type = "text",
   } = props;
   const [internalValue, setInternalValue] = useState(defaultValue);
   const [cursorPos, setCursorPos] = useState(defaultValue.length);
@@ -242,6 +251,7 @@ export function Input(props: InputProps): React.JSX.Element {
     onBeforeChange,
     multiline: multiline ?? false,
     innerWidth,
+    type,
   });
   stateRef.current = {
     isControlled,
@@ -250,6 +260,7 @@ export function Input(props: InputProps): React.JSX.Element {
     onBeforeChange,
     multiline: multiline ?? false,
     innerWidth,
+    type,
   };
 
   // Register with focus system
@@ -524,6 +535,18 @@ export function Input(props: InputProps): React.JSX.Element {
       // Printable character - consume it
       const ch = key.sequence;
       if (ch.length === 1 && ch.charCodeAt(0) >= 32) {
+        // Validate input based on type
+        const { type: inputType } = stateRef.current;
+        if (inputType === "number") {
+          // Only allow digits, decimal point, minus sign (at start)
+          const isDigit = /[0-9]/.test(ch);
+          const isDecimal = ch === "." && !val.includes(".");
+          const isMinus = ch === "-" && pos === 0 && !val.includes("-");
+          if (!isDigit && !isDecimal && !isMinus) {
+            return true; // Consume but don't insert
+          }
+        }
+        
         const newVal = val.slice(0, pos) + ch + val.slice(pos);
         updateValue(newVal, pos + 1);
         return true;

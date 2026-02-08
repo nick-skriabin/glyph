@@ -135,6 +135,16 @@ Text input field with cursor and placeholder support.
 
 Supports `multiline` for multi-line editing, `autoFocus` for automatic focus on mount. The cursor is always visible when focused.
 
+**Input types** for validation:
+
+```tsx
+// Text input (default) - accepts any character
+<Input type="text" value={name} onChange={setName} />
+
+// Number input - only accepts digits, decimal point, minus sign
+<Input type="number" value={age} onChange={setAge} placeholder="0" />
+```
+
 **Input masking** with `onBeforeChange` for validation/formatting:
 
 ```tsx
@@ -336,6 +346,25 @@ Declarative keyboard shortcut. Renders nothing.
 <Keybind keypress="q" onPress={() => exit()} />
 ```
 
+**Modifiers:** `ctrl`, `alt`, `shift`, `meta` (Cmd/Super). Combine with `+`: `"ctrl+shift+p"`, `"alt+return"`.
+
+**Priority keybinds:** Use `priority` prop to run BEFORE focused input handlers. Useful for keybinds that should work even when an Input is focused:
+
+```tsx
+<Keybind keypress="ctrl+return" onPress={submit} priority />
+<Keybind keypress="alt+return" onPress={submit} priority />
+```
+
+**Terminal configuration:** Some keybinds like `ctrl+return` require terminal support:
+
+| Terminal | Configuration |
+|----------|---------------|
+| **Ghostty** | Add to `~/.config/ghostty/config`: `keybind = ctrl+enter=text:\x1b[13;5~` |
+| **iTerm2** | Profiles → Keys → General → Enable "CSI u" mode |
+| **Kitty/WezTerm** | Works out of the box |
+
+`alt+return` works universally without configuration.
+
 ### `<Progress>`
 
 Determinate or indeterminate progress bar. Uses `useLayout` to measure actual width and renders block characters.
@@ -459,6 +488,59 @@ const { focused, focus } = useFocus(ref);
   </Text>
 </Box>
 ```
+
+### `useFocusable(options)`
+
+Make any element focusable with full keyboard support. Perfect for building custom interactive components.
+
+```tsx
+import { useFocusable, Box, Text } from "@nick-skriabin/glyph";
+
+function CustomPicker({ items, onSelect }) {
+  const [selected, setSelected] = useState(0);
+  
+  const { ref, isFocused } = useFocusable({
+    onKeyPress: (key) => {
+      if (key.name === "up") {
+        setSelected(s => Math.max(0, s - 1));
+        return true; // Consume the key
+      }
+      if (key.name === "down") {
+        setSelected(s => Math.min(items.length - 1, s + 1));
+        return true;
+      }
+      if (key.name === "return") {
+        onSelect(items[selected]);
+        return true;
+      }
+      return false; // Let other handlers process
+    },
+    onFocus: () => console.log("Picker focused"),
+    onBlur: () => console.log("Picker blurred"),
+    disabled: false, // Set to true to skip in tab order
+  });
+
+  return (
+    <Box
+      ref={ref}
+      focusable
+      style={{ 
+        border: "round",
+        borderColor: isFocused ? "cyan" : "gray",
+        padding: 1,
+      }}
+    >
+      {items.map((item, i) => (
+        <Text key={i} style={{ inverse: i === selected }}>
+          {i === selected ? "> " : "  "}{item}
+        </Text>
+      ))}
+    </Box>
+  );
+}
+```
+
+Returns `{ ref, isFocused, focus, focusId }`. The `ref` must be attached to an element with `focusable` prop.
 
 ### `useLayout(nodeRef)`
 
