@@ -1,0 +1,16 @@
+{
+  "name": "key-test",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx tsx src/main.tsx"
+  },
+  "dependencies": {
+    "@nick-skriabin/glyph": "workspace:*",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.4",
+    "@types/react": "^19.0.0"
+  }
+}

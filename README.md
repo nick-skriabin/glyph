@@ -18,6 +18,7 @@
 </p>
 
 <p align="center">
+  <a href="https://www.npmjs.com/package/@nick-skriabin/glyph"><img src="https://img.shields.io/npm/v/@nick-skriabin/glyph?color=crimson&logo=npm" alt="npm version"></a>
   <img src="https://img.shields.io/badge/React-18%2B-61dafb?logo=react&logoColor=white" alt="React 18+">
   <img src="https://img.shields.io/badge/Yoga-Flexbox-mediumpurple?logo=meta&logoColor=white" alt="Yoga Flexbox">
   <img src="https://img.shields.io/badge/TypeScript-First-3178c6?logo=typescript&logoColor=white" alt="TypeScript">

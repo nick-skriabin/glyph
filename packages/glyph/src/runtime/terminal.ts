@@ -98,9 +98,27 @@ export class Terminal {
     this.write(`${CSI}0m`);
   }
 
+  /** Enable kitty keyboard protocol for enhanced key detection */
+  enableKittyKeyboard(): void {
+    // Push keyboard mode with flags:
+    // 1 = Disambiguate escape codes
+    // 2 = Report event types
+    // 4 = Report alternate keys
+    // 8 = Report all keys as escape codes
+    // We use 1 (disambiguate) which gives us Ctrl+Enter, etc.
+    this.write(`${CSI}>1u`);
+  }
+
+  /** Disable kitty keyboard protocol */
+  disableKittyKeyboard(): void {
+    // Pop keyboard mode
+    this.write(`${CSI}<u`);
+  }
+
   setup(): void {
     this.enterRawMode();
     this.enterAltScreen();
+    this.enableKittyKeyboard(); // Enable extended keyboard protocol
     this.hideCursor();
     this.clearScreen();
     this.attachStdinListener();
@@ -118,6 +136,7 @@ export class Terminal {
 
     this.resetStyles();
     this.resetCursorColor();
+    this.disableKittyKeyboard(); // Restore normal keyboard mode
     this.showCursor();
     this.exitAltScreen();
     this.exitRawMode();
@@ -134,6 +153,7 @@ export class Terminal {
 
     this.resetStyles();
     this.resetCursorColor();
+    this.disableKittyKeyboard();
     this.showCursor();
     this.exitAltScreen();
     this.exitRawMode();
@@ -143,6 +163,7 @@ export class Terminal {
   resume(): void {
     this.enterRawMode();
     this.enterAltScreen();
+    this.enableKittyKeyboard();
     this.hideCursor();
     this.clearScreen();
   }
