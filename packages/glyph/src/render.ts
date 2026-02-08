@@ -19,6 +19,7 @@ import {
 import type {
   InputHandler,
   FocusedInputHandler,
+  PriorityInputHandler,
   InputContextValue,
   FocusContextValue,
   LayoutContextValue,
@@ -54,12 +55,17 @@ export function render(
 
   // ---- Input system ----
   const inputHandlers = new Set<InputHandler>();
+  const priorityHandlers = new Set<PriorityInputHandler>(); // Run before focused handlers
   const focusedInputHandlers = new Map<string, FocusedInputHandler>();
 
   const inputContextValue: InputContextValue = {
     subscribe(handler: InputHandler) {
       inputHandlers.add(handler);
       return () => inputHandlers.delete(handler);
+    },
+    subscribePriority(handler: PriorityInputHandler) {
+      priorityHandlers.add(handler);
+      return () => priorityHandlers.delete(handler);
     },
     registerInputHandler(focusId: string, handler: FocusedInputHandler) {
       focusedInputHandlers.set(focusId, handler);
@@ -363,16 +369,24 @@ export function render(
         continue;
       }
 
-      // If a text input is focused, let it consume the event first.
-      // If it returns true, skip useInput handlers.
+      // 1. Priority handlers run first (e.g., global keybinds like Ctrl+Enter)
       let consumed = false;
-      if (focusedId) {
+      for (const handler of priorityHandlers) {
+        if (handler(key)) {
+          consumed = true;
+          break;
+        }
+      }
+
+      // 2. If not consumed, let focused input handler try
+      if (!consumed && focusedId) {
         const inputHandler = focusedInputHandlers.get(focusedId);
         if (inputHandler) {
           consumed = inputHandler(key);
         }
       }
 
+      // 3. If still not consumed, run global handlers
       if (!consumed) {
         for (const handler of inputHandlers) {
           handler(key);

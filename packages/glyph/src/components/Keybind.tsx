@@ -11,6 +11,11 @@ export interface KeybindProps {
   whenFocused?: string;
   /** Only fire when nothing is focused or the focused element doesn't consume the key */
   global?: boolean;
+  /** 
+   * If true, this keybind runs BEFORE focused input handlers.
+   * Use for keybinds that should work even when an Input is focused (e.g., Ctrl+Enter to submit).
+   */
+  priority?: boolean;
   /** Disabled state */
   disabled?: boolean;
 }
@@ -45,6 +50,7 @@ export function Keybind({
   keypress,
   onPress,
   whenFocused,
+  priority,
   disabled,
 }: KeybindProps): null {
   const inputCtx = useContext(InputContext);
@@ -58,17 +64,33 @@ export function Keybind({
   useEffect(() => {
     if (!inputCtx || disabled) return;
 
-    const handler = (key: Key) => {
-      if (!matchesKey(matcherRef.current, key)) return;
+    if (priority) {
+      // Priority handler - runs before focused input handlers
+      const handler = (key: Key): boolean => {
+        if (!matchesKey(matcherRef.current, key)) return false;
 
-      // If whenFocused is specified, only fire when that ID is focused
-      if (whenFocused && focusCtx?.focusedId !== whenFocused) return;
+        // If whenFocused is specified, only fire when that ID is focused
+        if (whenFocused && focusCtx?.focusedId !== whenFocused) return false;
 
-      onPressRef.current();
-    };
+        onPressRef.current();
+        return true; // Consumed - prevent further propagation
+      };
 
-    return inputCtx.subscribe(handler);
-  }, [inputCtx, focusCtx, whenFocused, disabled]);
+      return inputCtx.subscribePriority(handler);
+    } else {
+      // Normal handler - runs after focused input handlers (if not consumed)
+      const handler = (key: Key) => {
+        if (!matchesKey(matcherRef.current, key)) return;
+
+        // If whenFocused is specified, only fire when that ID is focused
+        if (whenFocused && focusCtx?.focusedId !== whenFocused) return;
+
+        onPressRef.current();
+      };
+
+      return inputCtx.subscribe(handler);
+    }
+  }, [inputCtx, focusCtx, whenFocused, priority, disabled]);
 
   return null;
 }

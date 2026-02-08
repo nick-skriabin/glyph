@@ -4,10 +4,15 @@ import type { GlyphNode } from "../reconciler/nodes.js";
 
 // ---- Input Context ----
 export type InputHandler = (key: Key) => void;
+/** Returns true if the key was consumed and should not propagate further */
 export type FocusedInputHandler = (key: Key) => boolean;
+/** Priority handler - returns true if consumed, preventing all other handlers */
+export type PriorityInputHandler = (key: Key) => boolean;
 
 export interface InputContextValue {
   subscribe(handler: InputHandler): () => void;
+  /** Register a high-priority handler that runs BEFORE focused input handlers */
+  subscribePriority(handler: PriorityInputHandler): () => void;
   registerInputHandler(focusId: string, handler: FocusedInputHandler): () => void;
 }
 
