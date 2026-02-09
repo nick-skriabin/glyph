@@ -198,6 +198,18 @@ export function render(
         focusChangeHandlers.delete(handler);
       };
     },
+    getRegisteredElements() {
+      // Return all non-skippable registered elements
+      const result: { id: string; node: GlyphNode }[] = [];
+      for (const id of focusOrder) {
+        if (skippableIds.has(id)) continue;
+        const node = focusRegistry.get(id);
+        if (node) {
+          result.push({ id, node });
+        }
+      }
+      return result;
+    },
   };
 
   // ---- Layout system ----

@@ -38,6 +38,8 @@ export { Radio } from "./components/Radio.js";
 export type { RadioProps, RadioItem } from "./components/Radio.js";
 export { DialogHost, useDialog } from "./components/Dialog.js";
 export type { DialogHostProps, AlertOptions, ConfirmOptions, DialogContextValue } from "./components/Dialog.js";
+export { JumpNav } from "./components/JumpNav.js";
+export type { JumpNavProps } from "./components/JumpNav.js";
 
 // Hooks
 export { useInput } from "./hooks/useInput.js";
@@ -46,6 +48,8 @@ export { useFocusable } from "./hooks/useFocusable.js";
 export type { UseFocusableOptions, UseFocusableResult } from "./hooks/useFocusable.js";
 export { useLayout } from "./hooks/useLayout.js";
 export { useApp } from "./hooks/useApp.js";
+export { useFocusRegistry } from "./hooks/useFocusRegistry.js";
+export type { FocusableElement, FocusRegistryValue } from "./hooks/useFocusRegistry.js";
 
 // Utilities
 export { createMask, masks } from "./utils/mask.js";

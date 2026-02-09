@@ -19,6 +19,11 @@ export interface InputContextValue {
 export const InputContext = createContext<InputContextValue | null>(null);
 
 // ---- Focus Context ----
+export interface RegisteredElement {
+  id: string;
+  node: GlyphNode;
+}
+
 export interface FocusContextValue {
   focusedId: string | null;
   register(id: string, node: GlyphNode): () => void;
@@ -30,6 +35,8 @@ export interface FocusContextValue {
   trapIds: Set<string> | null;
   pushTrap(ids: Set<string>): () => void;
   onFocusChange(handler: (focusedId: string | null) => void): () => void;
+  /** Get all registered focusable elements (for custom navigation UIs) */
+  getRegisteredElements(): RegisteredElement[];
 }
 
 export const FocusContext = createContext<FocusContextValue | null>(null);

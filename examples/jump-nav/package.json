@@ -1,0 +1,16 @@
+{
+  "name": "jump-nav-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx tsx src/main.tsx"
+  },
+  "dependencies": {
+    "@nick-skriabin/glyph": "workspace:*",
+    "react": "^19.1.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3"
+  }
+}
