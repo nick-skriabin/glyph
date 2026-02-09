@@ -229,8 +229,9 @@ export function Input(props: InputProps): React.JSX.Element {
   // This prevents race conditions when typing faster than React renders
   const workingValueRef = useRef(value);
   const workingCursorRef = useRef(cursorPos);
-  // Track what we last sent to onChange to detect external vs echoed changes
+  // Track what we last sent to detect external vs echoed changes
   const lastSentValueRef = useRef(value);
+  const lastSentCursorRef = useRef(cursorPos);
   
   // Sync refs with React state when it updates
   // Only update if the incoming value is an EXTERNAL change (not just echoing what we sent)
@@ -244,13 +245,18 @@ export function Input(props: InputProps): React.JSX.Element {
       // Clamp cursor if beyond the new value length
       if (workingCursorRef.current > value.length) {
         workingCursorRef.current = value.length;
+        lastSentCursorRef.current = value.length;
         setCursorPos(value.length);
       }
     }
   }, [value]);
   
+  // Same logic for cursor - only accept external changes
   useEffect(() => {
-    workingCursorRef.current = cursorPos;
+    if (cursorPos !== lastSentCursorRef.current) {
+      workingCursorRef.current = cursorPos;
+      lastSentCursorRef.current = cursorPos;
+    }
   }, [cursorPos]);
 
   // Keep a ref to current values so the handler closure always reads fresh state
@@ -358,7 +364,8 @@ export function Input(props: InputProps): React.JSX.Element {
         
         workingValueRef.current = finalVal;
         workingCursorRef.current = finalCursor;
-        lastSentValueRef.current = finalVal; // Track what we're sending to onChange
+        lastSentValueRef.current = finalVal; // Track what we're sending
+        lastSentCursorRef.current = finalCursor;
         if (!ctrl) setInternalValue(finalVal);
         cb?.(finalVal);
         setCursorPos(finalCursor);
@@ -366,6 +373,7 @@ export function Input(props: InputProps): React.JSX.Element {
       
       const updateCursor = (newCursor: number) => {
         workingCursorRef.current = newCursor;
+        lastSentCursorRef.current = newCursor; // Track what we're sending
         setCursorPos(newCursor);
       };
 
@@ -590,7 +598,8 @@ export function Input(props: InputProps): React.JSX.Element {
     defaultValue,
     placeholder,
     onChange,
-    cursorPosition: cursorPos,
+    // Use ref (always current) instead of state (can lag during fast typing)
+    cursorPosition: workingCursorRef.current,
     multiline: multiline ?? false,
     focused: isFocused,
     ref: (node: any) => {
