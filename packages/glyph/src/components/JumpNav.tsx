@@ -34,6 +34,8 @@ export interface JumpNavProps {
   hintChars?: string;
   /** Whether jump nav is enabled (default: true) */
   enabled?: boolean;
+  /** Enable debug logging */
+  debug?: boolean;
 }
 
 // Generate hint keys for N elements
@@ -73,7 +75,9 @@ export function JumpNav({
   hintFg = "black",
   hintChars = "asdfghjklqwertyuiopzxcvbnm",
   enabled = true,
+  debug = false,
 }: JumpNavProps): React.JSX.Element {
+  const log = debug ? (...args: any[]) => console.error('[JumpNav]', ...args) : () => {};
   const [isActive, setIsActive] = useState(false);
   const [inputBuffer, setInputBuffer] = useState("");
   const [hasChildJumpNav, setHasChildJumpNav] = useState(false);
@@ -142,9 +146,13 @@ export function JumpNav({
 
   // Refresh elements by walking our subtree
   const refreshElements = useCallback(() => {
-    if (!wrapperRef.current) return;
+    if (!wrapperRef.current) {
+      log('refreshElements: no wrapper ref');
+      return;
+    }
     
     const descendants = findFocusableDescendants(wrapperRef.current);
+    log('Found', descendants.length, 'focusable elements');
     
     // Sort by visual position (top-to-bottom, left-to-right)
     descendants.sort((a, b) => {
@@ -155,7 +163,7 @@ export function JumpNav({
     });
     
     setElements(descendants);
-  }, [findFocusableDescendants]);
+  }, [findFocusableDescendants, log]);
 
   // Track previous isActive to detect activation transition
   const wasActiveRef = useRef(false);
@@ -185,11 +193,24 @@ export function JumpNav({
     return map;
   }, [visibleElements, visibleHints]);
 
+  // Log mount info
+  useEffect(() => {
+    log('Mounted, inputCtx:', !!inputCtx, 'enabled:', enabled, 'activationKey:', activationKey);
+    log('Parsed key:', activationKeyParsed);
+  }, []);
+
   // Handle key input
   useEffect(() => {
-    if (!inputCtx || !enabled) return;
+    if (!inputCtx || !enabled) {
+      log('Not subscribing - inputCtx:', !!inputCtx, 'enabled:', enabled);
+      return;
+    }
+
+    log('Subscribing to priority input');
 
     const handler = (key: { name?: string; ctrl?: boolean; alt?: boolean; shift?: boolean; meta?: boolean; sequence?: string }) => {
+      log('Key received:', key.name, 'ctrl:', key.ctrl, 'isActive:', isActive, 'hasChild:', hasChildJumpNav);
+      
       // Check for activation key - only if no child JumpNav exists (child takes priority)
       if (
         !isActive &&
@@ -200,6 +221,7 @@ export function JumpNav({
         !!key.shift === activationKeyParsed.shift &&
         !!key.meta === activationKeyParsed.meta
       ) {
+        log('Activation key matched! Activating...');
         setIsActive(true);
         setInputBuffer("");
         return true;
