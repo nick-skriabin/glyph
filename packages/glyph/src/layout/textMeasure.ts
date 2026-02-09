@@ -150,7 +150,7 @@ function wordWrap(text: string, maxWidth: number): string[] {
           currentWidth = 1;
         }
       }
-    } else {
+    } else if (char) {
       // Building a word
       wordBuffer += char;
       wordBufferWidth += stringWidth(char);
