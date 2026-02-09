@@ -12,11 +12,21 @@ export interface AlertOptions {
   okText?: string;
   /** Style for the dialog box */
   style?: Style;
+  /** Base style for buttons */
+  buttonStyle?: Style;
+  /** Style for the OK button (merged with buttonStyle) */
+  okButtonStyle?: Style;
+  /** Style for focused button state (merged with button styles) */
+  focusedButtonStyle?: Style;
+  /** Style for the backdrop overlay */
+  backdropStyle?: Style;
 }
 
 export interface ConfirmOptions extends AlertOptions {
   /** Text for the Cancel button (default: "Cancel") */
   cancelText?: string;
+  /** Style for the Cancel button (merged with buttonStyle) */
+  cancelButtonStyle?: Style;
 }
 
 export interface DialogContextValue {
@@ -33,6 +43,11 @@ interface DialogState {
   okText: string;
   cancelText: string;
   style?: Style;
+  buttonStyle?: Style;
+  okButtonStyle?: Style;
+  cancelButtonStyle?: Style;
+  focusedButtonStyle?: Style;
+  backdropStyle?: Style;
   resolve: (value: boolean) => void;
 }
 
@@ -105,6 +120,10 @@ export function DialogHost({ children }: DialogHostProps): React.JSX.Element {
           okText: options?.okText ?? "OK",
           cancelText: "",
           style: options?.style,
+          buttonStyle: options?.buttonStyle,
+          okButtonStyle: options?.okButtonStyle,
+          focusedButtonStyle: options?.focusedButtonStyle,
+          backdropStyle: options?.backdropStyle,
           resolve: () => resolve(),
         },
       ]);
@@ -123,6 +142,11 @@ export function DialogHost({ children }: DialogHostProps): React.JSX.Element {
           okText: options?.okText ?? "OK",
           cancelText: options?.cancelText ?? "Cancel",
           style: options?.style,
+          buttonStyle: options?.buttonStyle,
+          okButtonStyle: options?.okButtonStyle,
+          cancelButtonStyle: options?.cancelButtonStyle,
+          focusedButtonStyle: options?.focusedButtonStyle,
+          backdropStyle: options?.backdropStyle,
           resolve,
         },
       ]);
@@ -261,27 +285,49 @@ function DialogOverlay({ dialog, onDismiss }: DialogOverlayProps): React.JSX.Ele
     ...dialog.style,
   };
 
-  // Button styles
-  const getButtonStyle = (isSelected: boolean): Style => ({
-    paddingX: 2,
-    bg: isSelected ? "white" : "blackBright",
-    color: isSelected ? "black" : "white",
-    bold: isSelected,
-  });
+  // Button styles - merge base, specific, and focused styles
+  const getButtonStyle = (button: "ok" | "cancel", isSelected: boolean): Style => {
+    const baseStyle: Style = {
+      paddingX: 2,
+      bg: "blackBright",
+      color: "white",
+    };
+    
+    const defaultFocusedStyle: Style = {
+      bg: "white",
+      color: "black",
+      bold: true,
+    };
+    
+    const specificStyle = button === "ok" 
+      ? dialog.okButtonStyle 
+      : dialog.cancelButtonStyle;
+    
+    return {
+      ...baseStyle,
+      ...dialog.buttonStyle,
+      ...specificStyle,
+      ...(isSelected ? { ...defaultFocusedStyle, ...dialog.focusedButtonStyle } : {}),
+    };
+  };
+  
+  // Backdrop style
+  const backdropStyle: Style = {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 999,
+    ...dialog.backdropStyle,
+  };
 
   return React.createElement(
     FocusScope,
     { trap: true },
     // Backdrop
     React.createElement("box" as any, {
-      style: {
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 999,
-      },
+      style: backdropStyle,
     }),
     // Centering wrapper
     React.createElement(
@@ -325,7 +371,7 @@ function DialogOverlay({ dialog, onDismiss }: DialogOverlayProps): React.JSX.Ele
             React.createElement(
               "box" as any,
               {
-                style: getButtonStyle(focusedButton === "cancel"),
+                style: getButtonStyle("cancel", focusedButton === "cancel"),
                 focusable: true,
                 ref: (node: any) => {
                   if (node && node.focusId && !cancelFocusIdRef.current) {
@@ -341,7 +387,7 @@ function DialogOverlay({ dialog, onDismiss }: DialogOverlayProps): React.JSX.Ele
           React.createElement(
             "box" as any,
             {
-              style: getButtonStyle(focusedButton === "ok"),
+              style: getButtonStyle("ok", focusedButton === "ok"),
               focusable: true,
               ref: (node: any) => {
                 if (node && node.focusId && !okFocusIdRef.current) {
