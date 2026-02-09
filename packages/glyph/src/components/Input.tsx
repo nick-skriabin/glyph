@@ -229,15 +229,23 @@ export function Input(props: InputProps): React.JSX.Element {
   // This prevents race conditions when typing faster than React renders
   const workingValueRef = useRef(value);
   const workingCursorRef = useRef(cursorPos);
+  // Track what we last sent to onChange to detect external vs echoed changes
+  const lastSentValueRef = useRef(value);
   
   // Sync refs with React state when it updates
-  // Also clamp cursor when value changes externally (e.g., cleared)
+  // Only update if the incoming value is an EXTERNAL change (not just echoing what we sent)
+  // This prevents overwriting working refs during fast typing
   useEffect(() => {
-    workingValueRef.current = value;
-    // If cursor is beyond the new value length, clamp it
-    if (workingCursorRef.current > value.length) {
-      workingCursorRef.current = value.length;
-      setCursorPos(value.length);
+    // Only accept the incoming value if it's different from what we last sent
+    // This means it's either an external change or a transformed value from the parent
+    if (value !== lastSentValueRef.current) {
+      workingValueRef.current = value;
+      lastSentValueRef.current = value;
+      // Clamp cursor if beyond the new value length
+      if (workingCursorRef.current > value.length) {
+        workingCursorRef.current = value.length;
+        setCursorPos(value.length);
+      }
     }
   }, [value]);
   
@@ -350,6 +358,7 @@ export function Input(props: InputProps): React.JSX.Element {
         
         workingValueRef.current = finalVal;
         workingCursorRef.current = finalCursor;
+        lastSentValueRef.current = finalVal; // Track what we're sending to onChange
         if (!ctrl) setInternalValue(finalVal);
         cb?.(finalVal);
         setCursorPos(finalCursor);
