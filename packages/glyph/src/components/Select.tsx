@@ -9,7 +9,7 @@ import React, {
 import type { ReactNode } from "react";
 import type { Style, Key, Color } from "../types/index.js";
 import type { GlyphNode } from "../reconciler/nodes.js";
-import { FocusContext, InputContext, AppContext } from "../hooks/context.js";
+import { FocusContext, InputContext, AppContext, ScrollViewContext } from "../hooks/context.js";
 import { useLayout } from "../hooks/useLayout.js";
 
 export interface SelectItem {
@@ -59,6 +59,7 @@ export function Select({
   const focusCtx = useContext(FocusContext);
   const inputCtx = useContext(InputContext);
   const appCtx = useContext(AppContext);
+  const scrollViewCtx = useContext(ScrollViewContext);
   const nodeRef = useRef<GlyphNode | null>(null);
   const focusIdRef = useRef<string | null>(null);
   const onChangeRef = useRef(onChange);
@@ -74,6 +75,9 @@ export function Select({
 
   const triggerLayout = useLayout(nodeRef);
   const screenRows = appCtx?.rows ?? 24;
+  
+  // Get ScrollView bounds if we're inside one
+  const scrollViewBounds = scrollViewCtx?.getBounds();
 
   // Selected item label
   const selectedItem = items.find((item) => item.value === value);
@@ -441,9 +445,21 @@ export function Select({
     if (hasNoMatches) dropdownHeight += 1;
     
     // Determine if we should open upward
+    // Consider ScrollView bounds if inside one, otherwise use screen bounds
     const triggerBottom = triggerLayout.y + triggerLayout.height;
-    const spaceBelow = screenRows - triggerBottom;
-    const spaceAbove = triggerLayout.y;
+    
+    let spaceBelow: number;
+    let spaceAbove: number;
+    
+    if (scrollViewBounds) {
+      // Inside ScrollView - use ScrollView's visible bounds
+      spaceBelow = scrollViewBounds.visibleBottom - triggerBottom;
+      spaceAbove = triggerLayout.y - scrollViewBounds.visibleTop;
+    } else {
+      // Not inside ScrollView - use screen bounds
+      spaceBelow = screenRows - triggerBottom;
+      spaceAbove = triggerLayout.y;
+    }
     
     // Open upward if not enough space below but enough above
     const openUpward = spaceBelow < dropdownHeight && spaceAbove >= dropdownHeight;

@@ -62,3 +62,23 @@ export interface AppContextValue {
 }
 
 export const AppContext = createContext<AppContextValue | null>(null);
+
+// ---- ScrollView Context ----
+/** Provides boundary information for elements inside a ScrollView */
+export interface ScrollViewBounds {
+  /** Absolute Y position of visible area top (screen coordinates) */
+  visibleTop: number;
+  /** Absolute Y position of visible area bottom (screen coordinates) */
+  visibleBottom: number;
+  /** Height of the visible viewport */
+  viewportHeight: number;
+  /** Current scroll offset */
+  scrollOffset: number;
+}
+
+export interface ScrollViewContextValue {
+  /** Get the current visible bounds of the ScrollView */
+  getBounds(): ScrollViewBounds;
+}
+
+export const ScrollViewContext = createContext<ScrollViewContextValue | null>(null);

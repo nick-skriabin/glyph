@@ -1,10 +1,11 @@
-import React, { useRef, useState, useCallback, useEffect, useContext } from "react";
+import React, { useRef, useState, useCallback, useEffect, useContext, useMemo } from "react";
 import type { ReactNode } from "react";
 import type { Style, Key } from "../types/index.js";
 import type { GlyphNode } from "../reconciler/nodes.js";
 import { useLayout } from "../hooks/useLayout.js";
 import { useInput } from "../hooks/useInput.js";
-import { FocusContext, LayoutContext } from "../hooks/context.js";
+import { FocusContext, LayoutContext, ScrollViewContext } from "../hooks/context.js";
+import type { ScrollViewContextValue, ScrollViewBounds } from "../hooks/context.js";
 
 export interface ScrollViewProps {
   children?: ReactNode;
@@ -76,6 +77,19 @@ export function ScrollView({
 
   // Always clamp the effective offset used for rendering
   const effectiveOffset = Math.max(0, Math.min(offset, maxOffset));
+
+  // Provide ScrollView context for children (e.g., Select) to know their boundaries
+  const scrollViewContextValue = useMemo((): ScrollViewContextValue => ({
+    getBounds: (): ScrollViewBounds => {
+      const viewportY = viewportLayout.y;
+      return {
+        visibleTop: viewportY,
+        visibleBottom: viewportY + viewportHeight,
+        viewportHeight,
+        scrollOffset: effectiveOffset,
+      };
+    },
+  }), [viewportLayout.y, viewportHeight, effectiveOffset]);
 
   const setOffset = useCallback(
     (next: number) => {
@@ -298,37 +312,41 @@ export function ScrollView({
   };
 
   return React.createElement(
-    "box" as any,
-    {
-      style: outerStyle,
-      ref: (node: any) => {
-        viewportRef.current = node ?? null;
-      },
-      ...(focusable ? { focusable: true, focusId } : {}),
-    },
-    // Content (absolutely positioned, scrolls via top offset)
+    ScrollViewContext.Provider,
+    { value: scrollViewContextValue },
     React.createElement(
       "box" as any,
       {
-        style: {
-          ...innerStyle,
-          // Reserve space for scrollbar when visible
-          paddingRight: scrollbarVisible ? (innerStyle.paddingRight ?? 0) + 1 : innerStyle.paddingRight,
-        },
+        style: outerStyle,
         ref: (node: any) => {
-          contentRef.current = node ?? null;
+          viewportRef.current = node ?? null;
         },
+        ...(focusable ? { focusable: true, focusId } : {}),
       },
-      children,
-    ),
-    // Scrollbar
-    scrollbarVisible && React.createElement(
-      "box" as any,
-      { style: scrollbarStyle },
+      // Content (absolutely positioned, scrolls via top offset)
       React.createElement(
-        "text" as any,
-        { style: { color: "blackBright" as const } },
-        scrollbarChars.join("\n"),
+        "box" as any,
+        {
+          style: {
+            ...innerStyle,
+            // Reserve space for scrollbar when visible
+            paddingRight: scrollbarVisible ? (innerStyle.paddingRight ?? 0) + 1 : innerStyle.paddingRight,
+          },
+          ref: (node: any) => {
+            contentRef.current = node ?? null;
+          },
+        },
+        children,
+      ),
+      // Scrollbar
+      scrollbarVisible && React.createElement(
+        "box" as any,
+        { style: scrollbarStyle },
+        React.createElement(
+          "text" as any,
+          { style: { color: "blackBright" as const } },
+          scrollbarChars.join("\n"),
+        ),
       ),
     ),
   );
