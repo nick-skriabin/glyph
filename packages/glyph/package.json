@@ -34,7 +34,24 @@
     "tsup": "^8",
     "typescript": "^5.5"
   },
-  "keywords": ["react", "terminal", "tui", "cli", "flexbox"],
+  "keywords": [
+    "react",
+    "terminal",
+    "tui",
+    "cli",
+    "flexbox",
+    "console",
+    "command-line",
+    "renderer",
+    "react-renderer",
+    "yoga",
+    "layout",
+    "ui",
+    "components",
+    "ansi",
+    "text-ui",
+    "terminal-ui"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
