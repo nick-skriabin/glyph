@@ -242,12 +242,10 @@ export function Input(props: InputProps): React.JSX.Element {
     if (value !== lastSentValueRef.current) {
       workingValueRef.current = value;
       lastSentValueRef.current = value;
-      // Clamp cursor if beyond the new value length
-      if (workingCursorRef.current > value.length) {
-        workingCursorRef.current = value.length;
-        lastSentCursorRef.current = value.length;
-        setCursorPos(value.length);
-      }
+      // Move cursor to end of new value for programmatic changes
+      workingCursorRef.current = value.length;
+      lastSentCursorRef.current = value.length;
+      setCursorPos(value.length);
     }
   }, [value]);
   
