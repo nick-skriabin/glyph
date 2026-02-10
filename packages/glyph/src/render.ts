@@ -384,16 +384,6 @@ export function render(
         return;
       }
 
-      // Tab navigation
-      if (key.name === "tab" && !key.ctrl && !key.alt) {
-        if (key.shift) {
-          focusContextValue.focusPrev();
-        } else {
-          focusContextValue.focusNext();
-        }
-        continue;
-      }
-
       // 1. Priority handlers run first (e.g., global keybinds like Ctrl+Enter)
       let consumed = false;
       for (const handler of priorityHandlers) {
@@ -411,7 +401,18 @@ export function render(
         }
       }
 
-      // 3. If still not consumed, run global handlers
+      // 3. Tab navigation (if not consumed by input handler)
+      // This allows inputs to handle Tab via onKeyPress and return true to prevent focus change
+      if (!consumed && key.name === "tab" && !key.ctrl && !key.alt) {
+        if (key.shift) {
+          focusContextValue.focusPrev();
+        } else {
+          focusContextValue.focusNext();
+        }
+        continue;
+      }
+
+      // 4. If still not consumed, run global handlers
       if (!consumed) {
         for (const handler of inputHandlers) {
           handler(key);
