@@ -72,6 +72,17 @@
         "typescript": "^5.5",
       },
     },
+    "examples/image": {
+      "name": "image-example",
+      "dependencies": {
+        "@nick-skriabin/glyph": "workspace:*",
+        "react": "^19.1.0",
+      },
+      "devDependencies": {
+        "@types/react": "^19.1.4",
+        "typescript": "^5.8.3",
+      },
+    },
     "examples/jump-nav": {
       "name": "jump-nav-demo",
       "dependencies": {
@@ -372,6 +383,8 @@
     "get-east-asian-width": ["get-east-asian-width@1.4.0", "", {}, "sha512-QZjmEOC+IT1uk6Rx0sX22V6uHWVwbdbxf1faPqJ1QhLdGgsRGCZoyaQBm/piRdJy/D2um6hM1UP7ZEeQ4EkP+Q=="],
 
     "get-tsconfig": ["get-tsconfig@4.13.1", "", { "dependencies": { "resolve-pkg-maps": "1.0.0" } }, "sha512-EoY1N2xCn44xU6750Sx7OjOIT59FkmstNc3X6y5xpz7D5cBtZRe/3pSlTkDJgqsOk3WwZPkWfonhhUJfttQo3w=="],
+
+    "image-example": ["image-example@workspace:examples/image"],
 
     "joycon": ["joycon@3.1.1", "", {}, "sha512-34wB/Y7MW7bzjKRjUKTa46I2Z7eV62Rkhva+KkopW7Qvv/OSWBqvkSY7vusOPrNuZcUG3tApvdVgNB8POj3SPw=="],
 

@@ -82,3 +82,23 @@ export interface ScrollViewContextValue {
 }
 
 export const ScrollViewContext = createContext<ScrollViewContextValue | null>(null);
+
+// ---- Image Overlay Context ----
+/** Pending image to be rendered after framebuffer paint */
+export interface PendingImage {
+  id: number;
+  data: Buffer;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface ImageOverlayContextValue {
+  /** Register an image to be rendered after paint */
+  registerImage(image: PendingImage): void;
+  /** Unregister an image (when component unmounts or image is cleared) */
+  unregisterImage(id: number): void;
+}
+
+export const ImageOverlayContext = createContext<ImageOverlayContextValue | null>(null);

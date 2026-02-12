@@ -194,7 +194,15 @@ function extractLayout(node: GlyphNode, parentX: number, parentY: number): void 
   const innerWidth = Math.max(0, width - borderWidth * 2 - paddingLeft - paddingRight);
   const innerHeight = Math.max(0, height - borderWidth * 2 - paddingTop - paddingBottom);
 
-  node.layout = { x, y, width, height, innerX, innerY, innerWidth, innerHeight };
+  // Only create new layout object if values actually changed (prevents infinite re-renders)
+  const prev = node.layout;
+  if (!prev || 
+      prev.x !== x || prev.y !== y || 
+      prev.width !== width || prev.height !== height ||
+      prev.innerX !== innerX || prev.innerY !== innerY ||
+      prev.innerWidth !== innerWidth || prev.innerHeight !== innerHeight) {
+    node.layout = { x, y, width, height, innerX, innerY, innerWidth, innerHeight };
+  }
 
   for (const child of node.children) {
     if (child.hidden || !child.yogaNode) continue;

@@ -40,6 +40,8 @@ export { DialogHost, useDialog } from "./components/Dialog.js";
 export type { DialogHostProps, AlertOptions, ConfirmOptions, DialogContextValue } from "./components/Dialog.js";
 export { JumpNav } from "./components/JumpNav.js";
 export type { JumpNavProps } from "./components/JumpNav.js";
+export { Image } from "./components/Image.js";
+export type { ImageProps, ImageState } from "./components/Image.js";
 
 // Hooks
 export { useInput } from "./hooks/useInput.js";
@@ -56,6 +58,8 @@ export { createMask, masks } from "./utils/mask.js";
 export type { MaskOptions } from "./utils/mask.js";
 export { parseAnsi, stripAnsi } from "./paint/ansi.js";
 export type { AnsiStyle, StyledSegment } from "./paint/ansi.js";
+export { detectTerminalCapabilities, supportsInlineImages } from "./runtime/terminalCapabilities.js";
+export type { TerminalCapabilities } from "./runtime/terminalCapabilities.js";
 
 // Types
 export type {
