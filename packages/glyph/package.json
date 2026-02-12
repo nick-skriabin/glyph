@@ -1,6 +1,6 @@
 {
   "name": "@nick-skriabin/glyph",
-  "version": "0.1.0",
+  "version": "0.1.55",
   "description": "A React renderer for terminal UIs with flexbox layout",
   "type": "module",
   "main": "./dist/index.js",
@@ -12,7 +12,10 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
