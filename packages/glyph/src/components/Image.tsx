@@ -130,41 +130,21 @@ export function Image({
 
   // Track scroll position and hide image when scrolling
   useEffect(() => {
-    if (!scrollViewCtx) return;
+    if (!scrollViewCtx) {
+      // Not inside a ScrollView, always visible
+      return;
+    }
     
-    // Check scroll position periodically
-    const checkScroll = () => {
-      const bounds = scrollViewCtx.getBounds();
-      const currentOffset = bounds.scrollOffset;
-      
-      // If scroll offset changed, hide the image
-      if (currentOffset !== lastScrollOffsetRef.current) {
-        lastScrollOffsetRef.current = currentOffset;
-        setIsVisible(false);
-        
-        // Re-show after a short delay when scrolling stops
-        return true; // Indicates scroll changed
-      }
-      return false;
-    };
+    // Get current scroll offset
+    const bounds = scrollViewCtx.getBounds();
+    const currentOffset = bounds.scrollOffset;
     
-    // Poll for scroll changes (ScrollView doesn't have a subscription mechanism)
-    const interval = setInterval(() => {
-      const scrolled = checkScroll();
-      if (!scrolled && !isVisible) {
-        // Scrolling stopped, check if image is in viewport
-        const bounds = scrollViewCtx.getBounds();
-        if (layout) {
-          const imageTop = layout.innerY;
-          const imageBottom = layout.innerY + (loadedImageRef.current?.cellHeight ?? 0);
-          const inViewport = imageBottom > bounds.visibleTop && imageTop < bounds.visibleBottom;
-          setIsVisible(inViewport);
-        }
-      }
-    }, 50);
-    
-    return () => clearInterval(interval);
-  }, [scrollViewCtx, layout, isVisible]);
+    // If scroll offset changed since last check, hide the image permanently
+    if (currentOffset !== lastScrollOffsetRef.current) {
+      lastScrollOffsetRef.current = currentOffset;
+      setIsVisible(false);
+    }
+  }); // Run on every render to detect scroll changes
 
   // Register/update image with overlay system when loaded, visible, and layout changes
   useEffect(() => {
