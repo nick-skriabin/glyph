@@ -280,6 +280,9 @@ export function Image({
 
   const mergedStyle: Style = {
     ...baseStyle,
+    // Default focus style: highlight border
+    ...(isFocused ? { borderColor: "cyan" as const } : {}),
+    // User's focusedStyle overrides defaults
     ...(isFocused && focusedStyle ? focusedStyle : {}),
   };
 
