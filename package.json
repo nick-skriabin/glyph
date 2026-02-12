@@ -5,7 +5,10 @@
     "build": "turbo run build",
     "dev": "turbo run dev --filter=basic-layout",
     "typecheck": "turbo run typecheck",
-    "lint": "turbo run lint"
+    "lint": "turbo run lint",
+    "release": "bun scripts/release.ts",
+    "release:minor": "bun scripts/release.ts --minor",
+    "release:major": "bun scripts/release.ts --major"
   },
   "devDependencies": {
     "turbo": "^2",
