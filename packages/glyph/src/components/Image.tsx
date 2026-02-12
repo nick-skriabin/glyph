@@ -129,30 +129,32 @@ export function Image({
   }, [layoutCtx, nodeReady]);
 
   // Track scroll position and hide image when user scrolls
-  // Only check when scrollViewCtx's scroll offset changes (via context identity change)
+  // Run on every render to check if scroll offset changed
+  const currentScrollOffset = scrollViewCtx?.getBounds().scrollOffset ?? 0;
+  
   useEffect(() => {
     if (!scrollViewCtx) return;
     
-    const bounds = scrollViewCtx.getBounds();
-    const currentOffset = bounds.scrollOffset;
-    
     // Initialize on first mount
     if (lastScrollOffsetRef.current === null) {
-      lastScrollOffsetRef.current = currentOffset;
+      lastScrollOffsetRef.current = currentScrollOffset;
       return;
     }
     
     // If scroll offset actually changed, hide the image
-    if (currentOffset !== lastScrollOffsetRef.current) {
-      lastScrollOffsetRef.current = currentOffset;
+    if (currentScrollOffset !== lastScrollOffsetRef.current) {
+      lastScrollOffsetRef.current = currentScrollOffset;
       setIsVisible(false);
       setComputedDims(null);
     }
-  }, [scrollViewCtx]); // Only run when context changes (which happens on scroll)
+  }, [scrollViewCtx, currentScrollOffset]);
 
   // Register/update image with overlay system when loaded and layout changes
+  // Note: We schedule registration on next tick to ensure layout has settled
   useEffect(() => {
-    if (!imageOverlayCtx || state !== "loaded" || !loadedImageRef.current || !layout) return;
+    if (!imageOverlayCtx || state !== "loaded" || !loadedImageRef.current || !layout) {
+      return;
+    }
     
     // Don't register if hidden due to scroll
     if (!isVisible) {
@@ -162,19 +164,23 @@ export function Image({
     const { data, cellWidth, cellHeight } = loadedImageRef.current;
     const imageId = imageIdRef.current;
 
-    imageOverlayCtx.registerImage({
-      id: imageId,
-      data,
-      x: layout.innerX,
-      y: layout.innerY,
-      width: cellWidth,
-      height: cellHeight,
-    });
+    // Schedule on next tick to ensure all state has settled
+    const timeoutId = setTimeout(() => {
+      imageOverlayCtx.registerImage({
+        id: imageId,
+        data,
+        x: layout.innerX,
+        y: layout.innerY,
+        width: cellWidth,
+        height: cellHeight,
+      });
+    }, 0);
 
     return () => {
+      clearTimeout(timeoutId);
       imageOverlayCtx.unregisterImage(imageId);
     };
-  }, [imageOverlayCtx, state, layout, isVisible]);
+  }, [imageOverlayCtx, state, layout, isVisible, scrollViewCtx]);
 
   // Load and display image
   const loadAndDisplay = useCallback(async () => {

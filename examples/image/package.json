@@ -2,7 +2,8 @@
   "name": "image-example",
   "type": "module",
   "scripts": {
-    "dev": "bun run src/main.tsx"
+    "dev": "bun run src/main.tsx",
+    "scrollview": "bun run src/scrollview-test.tsx"
   },
   "dependencies": {
     "@nick-skriabin/glyph": "workspace:*",
