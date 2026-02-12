@@ -493,6 +493,9 @@ Display images in the terminal with inline rendering or OS preview. Supports loc
 | `placeholder` | `string` | filename | Custom placeholder text |
 | `onStateChange` | `(state) => void` | - | Called when state changes |
 | `onError` | `(error) => void` | - | Called on error |
+| `autoSize` | `boolean` | `false` | Auto-size box to fit image dimensions |
+| `maxWidth` | `number` | `80` | Max width in cells when autoSize is true |
+| `maxHeight` | `number` | `24` | Max height in cells when autoSize is true |
 
 **Terminal support:**
 - **Inline rendering:** Kitty, Ghostty, WezTerm, iTerm2 (via Kitty Graphics or iTerm2 protocol)
@@ -503,6 +506,14 @@ Display images in the terminal with inline rendering or OS preview. Supports loc
 ```tsx
 // Inline disabled - always use OS preview
 <Image src="./large-photo.jpg" inline={false} />
+
+// Auto-size: box resizes to fit the image (instead of image fitting in box)
+<Image 
+  src="./photo.jpg" 
+  autoSize 
+  maxWidth={60} 
+  maxHeight={20} 
+/>
 
 // With state callback
 <Image

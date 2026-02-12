@@ -91,7 +91,8 @@ function bringQuickLookToFront(): void {
     end tell
   `;
   
-  exec(`osascript -e '${script}'`, { stdio: "ignore" });
+  // exec doesn't support stdio option, just ignore the callback
+  exec(`osascript -e '${script}'`, () => {});
 }
 
 /**

@@ -42,6 +42,16 @@ export interface ImageProps {
   onError?: (error: Error) => void;
   /** Auto-load on mount (default: false - user presses space) */
   autoLoad?: boolean;
+  /** 
+   * Auto-size the box to fit the image dimensions (default: false).
+   * When true, the box resizes to match the image's aspect ratio.
+   * Use maxWidth/maxHeight to constrain the size.
+   */
+  autoSize?: boolean;
+  /** Maximum width in cells when autoSize is true */
+  maxWidth?: number;
+  /** Maximum height in cells when autoSize is true */
+  maxHeight?: number;
 }
 
 export function Image({
@@ -57,6 +67,9 @@ export function Image({
   onStateChange,
   onError,
   autoLoad = false,
+  autoSize = false,
+  maxWidth,
+  maxHeight,
 }: ImageProps): React.JSX.Element {
   const focusCtx = useContext(FocusContext);
   const inputCtx = useContext(InputContext);
@@ -73,6 +86,8 @@ export function Image({
   const [state, setState] = useState<ImageState>("placeholder");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [layout, setLayout] = useState<LayoutRect | null>(null);
+  // Computed dimensions when autoSize is true
+  const [computedDims, setComputedDims] = useState<{ width: number; height: number } | null>(null);
 
   // Loaded image data and computed dimensions
   const loadedImageRef = useRef<{ data: Buffer; localPath: string; cellWidth: number; cellHeight: number } | null>(null);
@@ -160,9 +175,48 @@ export function Image({
           imageData = pngData;
         }
         
-        // Get target dimensions - Kitty handles aspect ratio preservation
-        const targetWidth = width ?? layout.innerWidth;
-        const targetHeight = height ?? layout.innerHeight;
+        // Get image pixel dimensions for autoSize calculation
+        const imageDims = getImageDimensions(imageData);
+        
+        let targetWidth: number;
+        let targetHeight: number;
+        
+        if (autoSize && imageDims) {
+          // Calculate cell dimensions that fit the image while preserving aspect ratio
+          // Terminal cells are roughly 2x taller than wide
+          const cellAspectRatio = 2.0;
+          
+          // Convert image pixels to approximate cell dimensions
+          // Assume ~8 pixels per cell width, ~16 pixels per cell height (common terminal sizes)
+          const pixelsPerCellWidth = 8;
+          const pixelsPerCellHeight = 16;
+          
+          let cellWidth = Math.ceil(imageDims.width / pixelsPerCellWidth);
+          let cellHeight = Math.ceil(imageDims.height / pixelsPerCellHeight);
+          
+          // Apply max constraints if specified
+          const effectiveMaxWidth = maxWidth ?? 80;
+          const effectiveMaxHeight = maxHeight ?? 24;
+          
+          if (cellWidth > effectiveMaxWidth || cellHeight > effectiveMaxHeight) {
+            // Scale down to fit within constraints
+            const scaleX = effectiveMaxWidth / cellWidth;
+            const scaleY = effectiveMaxHeight / cellHeight;
+            const scale = Math.min(scaleX, scaleY);
+            cellWidth = Math.max(1, Math.round(cellWidth * scale));
+            cellHeight = Math.max(1, Math.round(cellHeight * scale));
+          }
+          
+          targetWidth = cellWidth;
+          targetHeight = cellHeight;
+          
+          // Update computed dimensions for the box
+          setComputedDims({ width: cellWidth, height: cellHeight });
+        } else {
+          // Use fixed dimensions or layout dimensions
+          targetWidth = width ?? layout.innerWidth;
+          targetHeight = height ?? layout.innerHeight;
+        }
 
         if (targetWidth <= 0 || targetHeight <= 0) {
           throw new Error("Image area too small");
@@ -190,7 +244,7 @@ export function Image({
       updateState("error");
       onError?.(error);
     }
-  }, [src, state, inline, layout, width, height, updateState, onError]);
+  }, [src, state, inline, layout, width, height, autoSize, maxWidth, maxHeight, updateState, onError]);
 
   // Handle key press (space to load/preview)
   useEffect(() => {
@@ -268,14 +322,18 @@ export function Image({
   }
 
   // Merge styles
+  // When autoSize is true and we have computed dimensions, use those
+  const effectiveWidth = autoSize && computedDims ? computedDims.width : width;
+  const effectiveHeight = autoSize && computedDims ? computedDims.height : height;
+  
   const baseStyle: Style = {
     border: "round" as const,
     borderColor: "blackBright" as const,
     justifyContent: "center" as const,
     alignItems: "center" as const,
     ...style,
-    ...(width !== undefined ? { width } : {}),
-    ...(height !== undefined ? { height } : {}),
+    ...(effectiveWidth !== undefined ? { width: effectiveWidth } : {}),
+    ...(effectiveHeight !== undefined ? { height: effectiveHeight } : {}),
   };
 
   const mergedStyle: Style = {
