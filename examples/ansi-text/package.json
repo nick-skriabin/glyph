@@ -1,0 +1,15 @@
+{
+  "name": "ansi-text",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "bun run src/main.tsx"
+  },
+  "dependencies": {
+    "@nick-skriabin/glyph": "workspace:*",
+    "react": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0"
+  }
+}

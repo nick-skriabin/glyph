@@ -120,6 +120,37 @@ Styled text content. Supports wrapping, alignment, bold, dim, italic, underline.
 </Text>
 ```
 
+**ANSI Escape Codes:** Text automatically parses and renders embedded ANSI escape codes, making it easy to display colorized output from CLI tools, libraries like `chalk`/`picocolors`, or your own styled strings:
+
+```tsx
+// Using ANSI codes directly
+const coloredText = "\x1b[32mGreen\x1b[0m and \x1b[1;31mBold Red\x1b[0m";
+<Text>{coloredText}</Text>
+
+// Works with chalk, picocolors, etc.
+import chalk from "chalk";
+<Text>{chalk.blue("Blue") + " " + chalk.bold.red("Bold Red")}</Text>
+
+// Display CLI output with preserved colors
+const gitOutput = execSync("git status --short", { encoding: "utf8" });
+<Text>{gitOutput}</Text>
+```
+
+Supports: basic colors (30-37, 40-47), bright colors (90-97, 100-107), 256-color palette (`\x1b[38;5;Nm`), true color RGB (`\x1b[38;2;R;G;Bm`), and attributes (bold, dim, italic, underline).
+
+**Utility functions** for working with ANSI strings:
+
+```tsx
+import { parseAnsi, stripAnsi } from "@nick-skriabin/glyph";
+
+// Parse ANSI into styled segments
+const segments = parseAnsi("\x1b[31mRed\x1b[0m Normal");
+// [{ text: "Red", style: { fg: "red" } }, { text: " Normal", style: {} }]
+
+// Strip all ANSI codes (useful for width calculations)
+stripAnsi("\x1b[32mHello\x1b[0m"); // "Hello"
+```
+
 ### `<Input>`
 
 Text input field with cursor and placeholder support.
@@ -731,6 +762,7 @@ Interactive examples are included in the repo. Each demonstrates different compo
 | **masked-input** | Input masks (phone, credit card, SSN) | [View →](https://github.com/nick-skriabin/glyph/tree/main/examples/masked-input) |
 | **dialog-demo** | Alert and Confirm dialogs | [View →](https://github.com/nick-skriabin/glyph/tree/main/examples/dialog-demo) |
 | **jump-nav** | Quick navigation with keyboard hints | [View →](https://github.com/nick-skriabin/glyph/tree/main/examples/jump-nav) |
+| **ansi-text** | ANSI escape codes and colored output | [View →](https://github.com/nick-skriabin/glyph/tree/main/examples/ansi-text) |
 | **showcase** | Progress bars, Spinners, Toasts | [View →](https://github.com/nick-skriabin/glyph/tree/main/examples/showcase) |
 | **dashboard** | Full task manager (all components) | [View →](https://github.com/nick-skriabin/glyph/tree/main/examples/dashboard) |
 

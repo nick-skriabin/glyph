@@ -54,6 +54,8 @@ export type { FocusableElement, FocusRegistryValue } from "./hooks/useFocusRegis
 // Utilities
 export { createMask, masks } from "./utils/mask.js";
 export type { MaskOptions } from "./utils/mask.js";
+export { parseAnsi, stripAnsi } from "./paint/ansi.js";
+export type { AnsiStyle, StyledSegment } from "./paint/ansi.js";
 
 // Types
 export type {

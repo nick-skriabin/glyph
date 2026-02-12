@@ -7,6 +7,7 @@ import { isLightColor } from "./color.js";
 import type { Color, Style } from "../types/index.js";
 import { wrapLines } from "../layout/textMeasure.js";
 import stringWidth from "string-width";
+import { parseAnsi, stripAnsi } from "./ansi.js";
 
 interface ClipRect {
   x: number;
@@ -210,40 +211,87 @@ function paintText(node: GlyphNode, fb: Framebuffer, clip: ClipRect): void {
   const text = collectTextContent(node);
   if (!text) return;
 
-  const fg = autoContrastFg(inherited.color, inherited.bg);
+  const baseFg = autoContrastFg(inherited.color, inherited.bg);
   const wrapMode = node.style.wrap ?? "wrap";
   const textAlign = node.style.textAlign ?? "left";
   const rawLines = text.split("\n");
-  const lines = wrapLines(rawLines, innerWidth, wrapMode);
+  
+  // For wrapping, we need to strip ANSI codes to get correct widths
+  // Then re-apply styles when painting
+  const strippedLines = rawLines.map(line => stripAnsi(line));
+  const wrappedStripped = wrapLines(strippedLines, innerWidth, wrapMode);
 
-  for (let lineIdx = 0; lineIdx < lines.length && lineIdx < innerHeight; lineIdx++) {
-    const line = lines[lineIdx]!;
-    const lineWidth = stringWidth(line);
+  // We need to track position in original text to maintain ANSI codes
+  // So we'll wrap the stripped version for layout, but paint from originals
+  // Actually, let's parse ANSI per-line and handle wrapping differently
+
+  for (let lineIdx = 0; lineIdx < wrappedStripped.length && lineIdx < innerHeight; lineIdx++) {
+    // Find which original line this wrapped line came from
+    let origLineIdx = 0;
+    let wrappedCount = 0;
+    for (let i = 0; i < strippedLines.length; i++) {
+      const linesFromThis = wrapLines([strippedLines[i]!], innerWidth, wrapMode).length;
+      if (lineIdx < wrappedCount + linesFromThis) {
+        origLineIdx = i;
+        break;
+      }
+      wrappedCount += linesFromThis;
+    }
+
+    const wrappedLine = wrappedStripped[lineIdx]!;
+    const visibleWidth = stringWidth(wrappedLine);
     let offsetX = 0;
 
     if (textAlign === "center") {
-      offsetX = Math.max(0, Math.floor((innerWidth - lineWidth) / 2));
+      offsetX = Math.max(0, Math.floor((innerWidth - visibleWidth) / 2));
     } else if (textAlign === "right") {
-      offsetX = Math.max(0, innerWidth - lineWidth);
+      offsetX = Math.max(0, innerWidth - visibleWidth);
     }
 
+    // Parse the original line to get ANSI styles
+    const originalLine = rawLines[origLineIdx]!;
+    const segments = parseAnsi(originalLine);
+    
+    // Figure out which characters from the original line are in this wrapped line
+    const subLineIdx = lineIdx - wrappedCount;
+    const wrappedVersions = wrapLines([strippedLines[origLineIdx]!], innerWidth, wrapMode);
+    
+    // Calculate character offset into the stripped line
+    let charOffset = 0;
+    for (let i = 0; i < subLineIdx; i++) {
+      charOffset += wrappedVersions[i]!.length;
+    }
+    const charEnd = charOffset + wrappedLine.length;
+
+    // Paint characters with their ANSI styles
     let col = 0;
-    for (const char of line) {
-      const charWidth = stringWidth(char);
-      if (charWidth > 0) {
-        setClipped(
-          fb, clip,
-          innerX + offsetX + col, innerY + lineIdx,
-          char,
-          fg,
-          inherited.bg,
-          inherited.bold,
-          inherited.dim,
-          inherited.italic,
-          inherited.underline,
-        );
+    let segmentCharIdx = 0; // Position in the stripped (visible) text
+    
+    for (const segment of segments) {
+      for (const char of segment.text) {
+        // Check if this character falls within our wrapped line range
+        if (segmentCharIdx >= charOffset && segmentCharIdx < charEnd) {
+          const charWidth = stringWidth(char);
+          if (charWidth > 0) {
+            // Merge ANSI style with inherited style (ANSI takes precedence)
+            const fg = segment.style.fg ?? baseFg;
+            const bg = segment.style.bg ?? inherited.bg;
+            const bold = segment.style.bold ?? inherited.bold;
+            const dim = segment.style.dim ?? inherited.dim;
+            const italic = segment.style.italic ?? inherited.italic;
+            const underline = segment.style.underline ?? inherited.underline;
+            
+            setClipped(
+              fb, clip,
+              innerX + offsetX + col, innerY + lineIdx,
+              char,
+              fg, bg, bold, dim, italic, underline,
+            );
+          }
+          col += stringWidth(char);
+        }
+        segmentCharIdx++;
       }
-      col += charWidth;
     }
   }
 }
