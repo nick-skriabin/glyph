@@ -366,13 +366,15 @@ function toAnchor(name: string): string {
 /**
  * @param content    — markdown to rewrite
  * @param origDir    — the original TypeDoc directory of this content (e.g. "interfaces")
- * @param destDir    — the new output directory (e.g. "components")
+ * @param destPage   — the FULL destination page path (e.g. "components/jump-nav")
+ *                     Starlight serves each .md as a directory, so relative links
+ *                     must be computed from the page path, not its parent folder.
  * @param linkMap    — mapping from TypeDoc path → new path
  */
 function rewriteLinks(
   content: string,
   origDir: string,
-  destDir: string,
+  destPage: string,
   linkMap: Map<string, { target: string; anchor?: string }>,
 ): string {
   return content.replace(/\[([^\]]*)\]\(([^)]+)\)/g, (match, text, href) => {
@@ -386,11 +388,12 @@ function rewriteLinks(
     const mapping = linkMap.get(resolved);
     if (!mapping) return match;
 
-    // Build path relative to the DESTINATION directory
-    const newRel = relative(destDir, mapping.target) || basename(mapping.target);
-    const newPath = newRel.endsWith(".md") ? newRel : newRel + ".md";
+    // Build path relative to the DESTINATION page (not folder).
+    // Starlight treats each page as a directory, so from "components/jump-nav"
+    // to "components/focus-scope" we need "../focus-scope", not "focus-scope".
+    const newRel = relative(destPage, mapping.target) || basename(mapping.target);
     const finalAnchor = mapping.anchor || anchorPart;
-    const finalHref = finalAnchor ? `${newPath}#${finalAnchor}` : newPath;
+    const finalHref = finalAnchor ? `${newRel}#${finalAnchor}` : newRel;
 
     return `[${text}](${finalHref})`;
   });
@@ -556,8 +559,9 @@ for (const [, page] of primaries) {
     if (existsSync(fullPath)) {
       const raw = readFileSync(fullPath, "utf-8");
       const body = extractBody(raw);
-      // Rewrite links relative to the TypeDoc source's original directory
-      parts.push(rewriteLinks(body, dirname(primaryTd), page.folder, linkMap));
+      // Rewrite links — use full page path so Starlight's directory routing works
+      const destPage = `${page.folder}/${page.slug}`;
+      parts.push(rewriteLinks(body, dirname(primaryTd), destPage, linkMap));
     }
   }
 
@@ -578,8 +582,9 @@ for (const [, page] of primaries) {
       parts.push("");
       parts.push(`## ${title || merged}`);
       parts.push("");
-      // Rewrite links relative to the merged source's original directory
-      parts.push(rewriteLinks(body, dirname(td), page.folder, linkMap));
+      // Rewrite links — use full page path so Starlight's directory routing works
+      const mergedDestPage = `${page.folder}/${page.slug}`;
+      parts.push(rewriteLinks(body, dirname(td), mergedDestPage, linkMap));
     }
   }
 
