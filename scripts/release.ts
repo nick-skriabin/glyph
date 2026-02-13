@@ -89,7 +89,9 @@ async function main() {
 
   // 5. Commit the version bump
   console.log("💾 Committing version bump...");
-  await $`git add ${packagePaths.join(" ")}`;
+  for (const pkgPath of packagePaths) {
+    await $`git add ${pkgPath}`;
+  }
   await $`git commit -m "chore: bump version to ${newVersion}"`;
   console.log("✅ Committed\n");
 
