@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { execSync } from "node:child_process";
 
 // ── Colors (no deps, just ANSI) ──────────────────────────────────────────────
 
@@ -358,13 +359,30 @@ function main() {
     console.log(`  ${dim("├")} ${green("+")} ${filePath}`);
   }
 
+  // Install dependencies
   console.log();
-  console.log(`  ${green("✓")} Project created!`);
+  console.log(`  ${cyan("◆")} ${bold("Installing dependencies")}${dim("...")}`);
   console.log();
-  console.log(`  ${bold("Next steps:")}`);
+
+  try {
+    execSync(getInstallCommand(pm), {
+      cwd: targetDir,
+      stdio: "inherit",
+    });
+    console.log();
+    console.log(`  ${green("✓")} Dependencies installed!`);
+  } catch {
+    console.log();
+    console.log(`  ${yellow("⚠")} Install failed. You can run it manually:`);
+    console.log(`    ${cyan("cd")} ${dirName} && ${cyan(getInstallCommand(pm))}`);
+  }
+
+  console.log();
+  console.log(`  ${green("✓")} ${bold(dirName)} is ready!`);
+  console.log();
+  console.log(`  ${bold("Get started:")}`);
   console.log();
   console.log(`    ${cyan("cd")} ${dirName}`);
-  console.log(`    ${cyan(getInstallCommand(pm))}`);
   console.log(`    ${cyan(getRunCommand(pm))}`);
   console.log();
   console.log(`  ${dim("Happy hacking! ✦")}`);
