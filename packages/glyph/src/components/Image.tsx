@@ -32,6 +32,8 @@ export interface ImageProps {
   placeholderStyle?: Style;
   /** Whether the component is focusable (default: true) */
   focusable?: boolean;
+  /** Whether the component is disabled (skipped in tab order, no key handling) */
+  disabled?: boolean;
   /** Allow inline rendering in terminal (default: true) */
   inline?: boolean;
   /** Custom placeholder text (default: image name) */
@@ -69,6 +71,7 @@ export function Image({
   focusedStyle,
   placeholderStyle,
   focusable = true,
+  disabled = false,
   inline = true,
   placeholder,
   onStateChange,
@@ -128,6 +131,12 @@ export function Image({
     if (!focusCtx || !focusIdRef.current || !nodeRef.current || !focusable) return;
     return focusCtx.register(focusIdRef.current, nodeRef.current, false);
   }, [focusCtx, focusable, nodeReady]);
+
+  // Handle disabled state (skip in tab order)
+  useEffect(() => {
+    if (!focusCtx || !focusIdRef.current) return;
+    focusCtx.setSkippable(focusIdRef.current, !!disabled);
+  }, [focusCtx, disabled]);
 
   // Subscribe to focus changes
   useEffect(() => {
@@ -317,7 +326,7 @@ export function Image({
 
   // Handle key press (space to load/preview)
   useEffect(() => {
-    if (!inputCtx || !focusIdRef.current || !focusable) return;
+    if (!inputCtx || !focusIdRef.current || !focusable || disabled) return;
     const fid = focusIdRef.current;
 
     const handler = (key: Key): boolean => {
@@ -353,7 +362,7 @@ export function Image({
     };
 
     return inputCtx.registerInputHandler(fid, handler);
-  }, [inputCtx, focusCtx, focusable, nodeReady, loadAndDisplay, state, updateState]);
+  }, [inputCtx, focusCtx, focusable, disabled, nodeReady, loadAndDisplay, state, updateState]);
 
   // Auto-load on mount
   useEffect(() => {
