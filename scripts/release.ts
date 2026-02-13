@@ -87,13 +87,18 @@ async function main() {
   }
   console.log();
 
-  // 5. Commit the version bump
+  // 5. Commit the version bump (skip if nothing changed)
   console.log("💾 Committing version bump...");
   for (const pkgPath of packagePaths) {
     await $`git add ${pkgPath}`;
   }
-  await $`git commit -m "chore: bump version to ${newVersion}"`;
-  console.log("✅ Committed\n");
+  const diff = await $`git diff --cached --name-only`.text();
+  if (diff.trim()) {
+    await $`git commit -m "chore: bump version to ${newVersion}"`;
+    console.log("✅ Committed\n");
+  } else {
+    console.log("⏭️  Versions already up to date, skipping commit\n");
+  }
 
   // 6. Create and push tag
   console.log(`🏷️  Creating tag ${newVersion}...`);
