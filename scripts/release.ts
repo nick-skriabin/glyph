@@ -122,7 +122,7 @@ async function main() {
   }
 
   console.log(`🎉 Release ${newVersion} complete!`);
-  console.log(`   View at: https://github.com/nick-skriabin/glyph/releases/tag/${newVersion}`);
+  console.log(`   View at: https://github.com/semos-labs/glyph/releases/tag/${newVersion}`);
 }
 
 main().catch((err) => {

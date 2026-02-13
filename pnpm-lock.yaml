@@ -17,7 +17,7 @@ importers:
 
   examples/ansi-text:
     dependencies:
-      '@nick-skriabin/glyph':
+      '@semos-labs/glyph':
         specifier: workspace:*
         version: link:../../packages/glyph
       react:
@@ -30,7 +30,7 @@ importers:
 
   examples/basic-layout:
     dependencies:
-      '@nick-skriabin/glyph':
+      '@semos-labs/glyph':
         specifier: workspace:*
         version: link:../../packages/glyph
       react:
@@ -52,7 +52,7 @@ importers:
 
   examples/dashboard:
     dependencies:
-      '@nick-skriabin/glyph':
+      '@semos-labs/glyph':
         specifier: workspace:*
         version: link:../../packages/glyph
       react:
@@ -74,7 +74,7 @@ importers:
 
   examples/dialog-demo:
     dependencies:
-      '@nick-skriabin/glyph':
+      '@semos-labs/glyph':
         specifier: workspace:*
         version: link:../../packages/glyph
       react:
@@ -96,7 +96,7 @@ importers:
 
   examples/forms-demo:
     dependencies:
-      '@nick-skriabin/glyph':
+      '@semos-labs/glyph':
         specifier: workspace:*
         version: link:../../packages/glyph
       react:
@@ -118,7 +118,7 @@ importers:
 
   examples/image:
     dependencies:
-      '@nick-skriabin/glyph':
+      '@semos-labs/glyph':
         specifier: workspace:*
         version: link:../../packages/glyph
       react:
@@ -134,7 +134,7 @@ importers:
 
   examples/jump-nav:
     dependencies:
-      '@nick-skriabin/glyph':
+      '@semos-labs/glyph':
         specifier: workspace:*
         version: link:../../packages/glyph
       react:
@@ -150,7 +150,7 @@ importers:
 
   examples/key-test:
     dependencies:
-      '@nick-skriabin/glyph':
+      '@semos-labs/glyph':
         specifier: workspace:*
         version: link:../../packages/glyph
       react:
@@ -166,7 +166,7 @@ importers:
 
   examples/list-demo:
     dependencies:
-      '@nick-skriabin/glyph':
+      '@semos-labs/glyph':
         specifier: workspace:*
         version: link:../../packages/glyph
       react:
@@ -188,7 +188,7 @@ importers:
 
   examples/masked-input:
     dependencies:
-      '@nick-skriabin/glyph':
+      '@semos-labs/glyph':
         specifier: workspace:*
         version: link:../../packages/glyph
       react:
@@ -210,7 +210,7 @@ importers:
 
   examples/menu-demo:
     dependencies:
-      '@nick-skriabin/glyph':
+      '@semos-labs/glyph':
         specifier: workspace:*
         version: link:../../packages/glyph
       react:
@@ -232,7 +232,7 @@ importers:
 
   examples/modal-input:
     dependencies:
-      '@nick-skriabin/glyph':
+      '@semos-labs/glyph':
         specifier: workspace:*
         version: link:../../packages/glyph
       react:
@@ -254,7 +254,7 @@ importers:
 
   examples/scrollview-demo:
     dependencies:
-      '@nick-skriabin/glyph':
+      '@semos-labs/glyph':
         specifier: workspace:*
         version: link:../../packages/glyph
       react:
@@ -276,7 +276,7 @@ importers:
 
   examples/select-demo:
     dependencies:
-      '@nick-skriabin/glyph':
+      '@semos-labs/glyph':
         specifier: workspace:*
         version: link:../../packages/glyph
       react:
@@ -298,7 +298,7 @@ importers:
 
   examples/showcase:
     dependencies:
-      '@nick-skriabin/glyph':
+      '@semos-labs/glyph':
         specifier: workspace:*
         version: link:../../packages/glyph
       react:
@@ -320,7 +320,7 @@ importers:
 
   examples/styled-text:
     dependencies:
-      '@nick-skriabin/glyph':
+      '@semos-labs/glyph':
         specifier: workspace:*
         version: link:../../packages/glyph
       react:
@@ -329,7 +329,7 @@ importers:
 
   examples/virtualized-list:
     dependencies:
-      '@nick-skriabin/glyph':
+      '@semos-labs/glyph':
         specifier: workspace:*
         version: link:../../packages/glyph
       react:

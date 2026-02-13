@@ -19,7 +19,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@semos-labs/glyph"><img src="https://img.shields.io/npm/v/@semos-labs/glyph?color=crimson&logo=npm" alt="npm version"></a>
-  <a href="https://github.com/nick-skriabin/glyph/actions/workflows/test.yml"><img src="https://github.com/nick-skriabin/glyph/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
+  <a href="https://github.com/semos-labs/glyph/actions/workflows/test.yml"><img src="https://github.com/semos-labs/glyph/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
   <img src="https://img.shields.io/badge/React-18%2B-61dafb?logo=react&logoColor=white" alt="React 18+">
   <img src="https://img.shields.io/badge/Yoga-Flexbox-mediumpurple?logo=meta&logoColor=white" alt="Yoga Flexbox">
   <img src="https://img.shields.io/badge/TypeScript-First-3178c6?logo=typescript&logoColor=white" alt="TypeScript">
@@ -860,27 +860,27 @@ Interactive examples are included in the repo. Each demonstrates different compo
 
 | Example | Description | Source |
 |---------|-------------|--------|
-| **basic-layout** | Flexbox layout fundamentals | [View →](https://github.com/nick-skriabin/glyph/tree/main/examples/basic-layout) |
-| **modal-input** | Modal dialogs, input focus trapping | [View →](https://github.com/nick-skriabin/glyph/tree/main/examples/modal-input) |
-| **scrollview-demo** | Scrollable content with keyboard navigation | [View →](https://github.com/nick-skriabin/glyph/tree/main/examples/scrollview-demo) |
-| **list-demo** | Keyboard-navigable lists | [View →](https://github.com/nick-skriabin/glyph/tree/main/examples/list-demo) |
-| **menu-demo** | Styled menus with icons | [View →](https://github.com/nick-skriabin/glyph/tree/main/examples/menu-demo) |
-| **select-demo** | Dropdown select with search | [View →](https://github.com/nick-skriabin/glyph/tree/main/examples/select-demo) |
-| **forms-demo** | Checkbox and Radio inputs | [View →](https://github.com/nick-skriabin/glyph/tree/main/examples/forms-demo) |
-| **masked-input** | Input masks (phone, credit card, SSN) | [View →](https://github.com/nick-skriabin/glyph/tree/main/examples/masked-input) |
-| **dialog-demo** | Alert and Confirm dialogs | [View →](https://github.com/nick-skriabin/glyph/tree/main/examples/dialog-demo) |
-| **jump-nav** | Quick navigation with keyboard hints | [View →](https://github.com/nick-skriabin/glyph/tree/main/examples/jump-nav) |
-| **ansi-text** | ANSI escape codes and colored output | [View →](https://github.com/nick-skriabin/glyph/tree/main/examples/ansi-text) |
-| **image** | Inline images and OS preview | [View →](https://github.com/nick-skriabin/glyph/tree/main/examples/image) |
-| **virtualized-list** | Virtualized ScrollView with 10k+ items | [View →](https://github.com/nick-skriabin/glyph/tree/main/examples/virtualized-list) |
-| **showcase** | Progress bars, Spinners, Toasts | [View →](https://github.com/nick-skriabin/glyph/tree/main/examples/showcase) |
-| **dashboard** | Full task manager (all components) | [View →](https://github.com/nick-skriabin/glyph/tree/main/examples/dashboard) |
+| **basic-layout** | Flexbox layout fundamentals | [View →](https://github.com/semos-labs/glyph/tree/main/examples/basic-layout) |
+| **modal-input** | Modal dialogs, input focus trapping | [View →](https://github.com/semos-labs/glyph/tree/main/examples/modal-input) |
+| **scrollview-demo** | Scrollable content with keyboard navigation | [View →](https://github.com/semos-labs/glyph/tree/main/examples/scrollview-demo) |
+| **list-demo** | Keyboard-navigable lists | [View →](https://github.com/semos-labs/glyph/tree/main/examples/list-demo) |
+| **menu-demo** | Styled menus with icons | [View →](https://github.com/semos-labs/glyph/tree/main/examples/menu-demo) |
+| **select-demo** | Dropdown select with search | [View →](https://github.com/semos-labs/glyph/tree/main/examples/select-demo) |
+| **forms-demo** | Checkbox and Radio inputs | [View →](https://github.com/semos-labs/glyph/tree/main/examples/forms-demo) |
+| **masked-input** | Input masks (phone, credit card, SSN) | [View →](https://github.com/semos-labs/glyph/tree/main/examples/masked-input) |
+| **dialog-demo** | Alert and Confirm dialogs | [View →](https://github.com/semos-labs/glyph/tree/main/examples/dialog-demo) |
+| **jump-nav** | Quick navigation with keyboard hints | [View →](https://github.com/semos-labs/glyph/tree/main/examples/jump-nav) |
+| **ansi-text** | ANSI escape codes and colored output | [View →](https://github.com/semos-labs/glyph/tree/main/examples/ansi-text) |
+| **image** | Inline images and OS preview | [View →](https://github.com/semos-labs/glyph/tree/main/examples/image) |
+| **virtualized-list** | Virtualized ScrollView with 10k+ items | [View →](https://github.com/semos-labs/glyph/tree/main/examples/virtualized-list) |
+| **showcase** | Progress bars, Spinners, Toasts | [View →](https://github.com/semos-labs/glyph/tree/main/examples/showcase) |
+| **dashboard** | Full task manager (all components) | [View →](https://github.com/semos-labs/glyph/tree/main/examples/dashboard) |
 
 ### Running Examples Locally
 
 ```bash
 # Clone and install
-git clone https://github.com/nick-skriabin/glyph.git && cd glyph
+git clone https://github.com/semos-labs/glyph.git && cd glyph
 bun install && bun run build
 
 # Run any example
@@ -898,7 +898,7 @@ bun run --filter jump-nav dev
 <table>
   <tr>
     <td align="center">
-      <a href="https://github.com/nick-skriabin/aion">
+      <a href="https://github.com/semos-labs/aion">
         <strong>Aion</strong>
       </a>
       <br>
@@ -907,7 +907,7 @@ bun run --filter jump-nav dev
   </tr>
 </table>
 
-<sub>Using Glyph in your project? <a href="https://github.com/nick-skriabin/glyph/issues">Let us know!</a></sub>
+<sub>Using Glyph in your project? <a href="https://github.com/semos-labs/glyph/issues">Let us know!</a></sub>
 
 ---
 
