@@ -3,12 +3,21 @@ import type { ReactNode } from "react";
 import type { Style, Color } from "../types/index.js";
 import type { GlyphNode } from "../reconciler/nodes.js";
 import type { LayoutRect } from "../types/index.js";
-import { InputContext, FocusContext, LayoutContext } from "../hooks/context.js";
+import { InputContext, FocusContext, LayoutContext, AppContext } from "../hooks/context.js";
+
+interface ClipRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 interface TrackedElement {
   id: string;
   node: GlyphNode;
   layout: LayoutRect;
+  /** Effective clip region from ancestor ScrollViews/clipped containers */
+  clipRegion: ClipRect;
 }
 
 export interface JumpNavProps {
@@ -27,6 +36,63 @@ export interface JumpNavProps {
   enabled?: boolean;
   /** Enable debug logging */
   debug?: boolean;
+}
+
+/**
+ * Compute the effective clip region for a node by walking up its parent chain
+ * and intersecting all ancestor clip regions. This tells us the actual visible
+ * area for the element (accounting for ScrollViews, clipped containers, etc.)
+ */
+function computeEffectiveClip(node: GlyphNode, screenClip: ClipRect): ClipRect {
+  // Collect clip regions from ancestors (bottom-up)
+  const clips: ClipRect[] = [];
+  let current: GlyphNode | null = node.parent;
+  while (current) {
+    if (current.style.clip) {
+      clips.push({
+        x: current.layout.innerX,
+        y: current.layout.innerY,
+        width: current.layout.innerWidth,
+        height: current.layout.innerHeight,
+      });
+    }
+    current = current.parent;
+  }
+
+  // Start with the screen and intersect all ancestor clips
+  let result = screenClip;
+  for (const clip of clips) {
+    result = intersectClip(result, clip);
+  }
+  return result;
+}
+
+function intersectClip(a: ClipRect, b: ClipRect): ClipRect {
+  const x = Math.max(a.x, b.x);
+  const y = Math.max(a.y, b.y);
+  const right = Math.min(a.x + a.width, b.x + b.width);
+  const bottom = Math.min(a.y + a.height, b.y + b.height);
+  return {
+    x,
+    y,
+    width: Math.max(0, right - x),
+    height: Math.max(0, bottom - y),
+  };
+}
+
+/**
+ * Check if an element is at least partially visible within its clip region
+ */
+function isElementVisible(layout: LayoutRect, clip: ClipRect): boolean {
+  if (clip.width <= 0 || clip.height <= 0) return false;
+  const elRight = layout.x + layout.width;
+  const elBottom = layout.y + layout.height;
+  return (
+    layout.x < clip.x + clip.width &&
+    elRight > clip.x &&
+    layout.y < clip.y + clip.height &&
+    elBottom > clip.y
+  );
 }
 
 // Generate hint keys for N elements
@@ -79,6 +145,7 @@ export function JumpNav({
   const inputCtx = useContext(InputContext);
   const focusCtx = useContext(FocusContext);
   const layoutCtx = useContext(LayoutContext);
+  const appCtx = useContext(AppContext);
 
   // Log mount info
   useEffect(() => {
@@ -108,11 +175,16 @@ export function JumpNav({
     
     const active = focusCtx.getActiveElements();
     log('getActiveElements returned', active.length, 'elements');
+
+    const screenColumns = appCtx?.columns ?? 80;
+    const screenRows = appCtx?.rows ?? 24;
+    const screenClip: ClipRect = { x: 0, y: 0, width: screenColumns, height: screenRows };
     
     const mapped: TrackedElement[] = active.map(({ id, node }) => ({
       id,
       node,
       layout: layoutCtx?.getLayout(node) ?? node.layout,
+      clipRegion: computeEffectiveClip(node, screenClip),
     }));
     
     // Sort by visual position (top-to-bottom, left-to-right)
@@ -124,7 +196,7 @@ export function JumpNav({
     });
     
     setElements(mapped);
-  }, [focusCtx, layoutCtx, log]);
+  }, [focusCtx, layoutCtx, appCtx, log]);
 
   // Track previous isActive to detect activation transition
   const wasActiveRef = useRef(false);
@@ -138,9 +210,14 @@ export function JumpNav({
     wasActiveRef.current = isActive;
   }, [isActive, refreshElements, log]);
 
-  // Filter elements with valid layout (visible and computed)
+  // Screen dimensions for boundary checks
+  const screenColumns = appCtx?.columns ?? 80;
+  const screenRows = appCtx?.rows ?? 24;
+
+  // Filter elements: must have valid layout AND be within their clip region (ScrollView, screen, etc.)
   const visibleElements = elements.filter(el => 
-    el.layout.width > 0 && el.layout.height > 0
+    el.layout.width > 0 && el.layout.height > 0 &&
+    isElementVisible(el.layout, el.clipRegion)
   );
   const visibleHints = generateHints(visibleElements.length, hintChars);
 
@@ -255,8 +332,35 @@ export function JumpNav({
       const hint = visibleHints[i];
       if (!hint) return null;
       
-      // Position hint at element's location
-      const { x, y } = el.layout;
+      const { x, y, width: elWidth } = el.layout;
+      const clip = el.clipRegion;
+      
+      // Label width = hint text + 2 chars padding (1 each side)
+      const labelWidth = hint.length + 2;
+      
+      // Clamp Y within the element's visible clip region and screen
+      const clampedY = Math.max(clip.y, Math.min(y, clip.y + clip.height - 1, screenRows - 1));
+      
+      // Try placing the label to the LEFT of the element
+      const leftPos = x - labelWidth;
+      // Try placing the label to the RIGHT of the element
+      const rightPos = x + elWidth;
+      
+      let labelX: number;
+      
+      if (leftPos >= clip.x && leftPos >= 0) {
+        // Fits to the left — default position
+        labelX = leftPos;
+      } else if (rightPos + labelWidth <= clip.x + clip.width && rightPos + labelWidth <= screenColumns) {
+        // Doesn't fit left → place to the right
+        labelX = rightPos;
+      } else {
+        // Doesn't fit on either side cleanly — place at element x, overlapping the element
+        labelX = Math.max(clip.x, Math.min(x, screenColumns - labelWidth));
+      }
+      
+      // Final safety clamp to screen
+      labelX = Math.max(0, Math.min(labelX, screenColumns - labelWidth));
       
       // Highlight matching prefix
       const isPartialMatch = hint.startsWith(inputBuffer) && inputBuffer.length > 0;
@@ -267,8 +371,8 @@ export function JumpNav({
           key: el.id,
           style: {
             position: "absolute" as const,
-            top: y,
-            left: Math.max(0, x - hint.length - 2),
+            top: clampedY,
+            left: labelX,
             bg: isPartialMatch ? "cyan" : hintBg,
             color: hintFg,
             paddingX: 1,
