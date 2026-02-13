@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://em-content.zobj.net/source/apple/391/crystal-ball_1f52e.png" width="120" height="120" alt="Glyph">
+  <img src="images/Glyph.png" alt="Aion" width="200">
 </p>
 
 <h1 align="center">Glyph</h1>
