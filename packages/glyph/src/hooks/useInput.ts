@@ -19,6 +19,7 @@ import type { Key } from "../types/index.js";
  *   if (key.name === "q" && !key.ctrl) exit();
  * });
  * ```
+  * @category Hooks
  */
 export function useInput(
   handler: (key: Key) => void,

@@ -10,7 +10,8 @@ interface VisualLineInfo {
   visualLine: number;
   visualCol: number;
   totalVisualLines: number;
-  /** Character offset where current visual line starts in original text */
+  /** Character offset where current visual line starts in original text
+ */
   lineStartOffset: number;
   /** Length of current visual line */
   lineLength: number;
@@ -238,6 +239,7 @@ export interface InputProps {
  *   placeholder="(555) 555-5555"
  * />
  * ```
+  * @category Components
  */
 export const Input = forwardRef<InputHandle, InputProps>(
   function Input(props, ref) {

@@ -51,6 +51,7 @@ export interface FocusRegistryValue {
  *   registry.focusNext();
  * }
  * ```
+  * @category Hooks
  */
 export function useFocusRegistry(): FocusRegistryValue | null {
   const focusCtx = useContext(FocusContext);

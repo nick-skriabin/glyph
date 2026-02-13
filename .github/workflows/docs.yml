@@ -35,7 +35,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Generate docs with TypeDoc
-        run: bunx typedoc --plugin typedoc-plugin-markdown --out .docs-out
+        run: bunx typedoc
 
       - name: Post-process for Starlight
         run: bun scripts/postprocess-docs.ts .docs-out

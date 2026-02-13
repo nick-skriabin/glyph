@@ -33,6 +33,7 @@ export interface SpinnerProps {
  * // Custom frames
  * <Spinner frames={["◐", "◓", "◑", "◒"]} intervalMs={120} />
  * ```
+  * @category Components
  */
 export function Spinner({
   frames = BRAILLE_FRAMES,

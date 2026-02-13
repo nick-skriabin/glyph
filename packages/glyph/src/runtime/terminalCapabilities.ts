@@ -14,6 +14,7 @@ let cachedCapabilities: TerminalCapabilities | null = null;
 
 /**
  * Detect which terminal we're running in and what image protocols it supports
+  * @category Utilities
  */
 export function detectTerminalCapabilities(debug = false): TerminalCapabilities {
   if (cachedCapabilities) return cachedCapabilities;
@@ -104,6 +105,7 @@ export function detectTerminalCapabilities(debug = false): TerminalCapabilities 
 
 /**
  * Check if the terminal supports any inline image protocol
+  * @category Utilities
  */
 export function supportsInlineImages(): boolean {
   const caps = detectTerminalCapabilities();

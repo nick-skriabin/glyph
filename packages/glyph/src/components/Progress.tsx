@@ -39,6 +39,7 @@ export interface ProgressProps {
  * // Indeterminate marquee
  * <Progress indeterminate label="Loading..." />
  * ```
+  * @category Components
  */
 export function Progress({
   value,

@@ -16,7 +16,8 @@ interface TrackedElement {
   id: string;
   node: GlyphNode;
   layout: LayoutRect;
-  /** Effective clip region from ancestor ScrollViews/clipped containers */
+  /** Effective clip region from ancestor ScrollViews/clipped containers
+ */
   clipRegion: ClipRect;
 }
 
@@ -143,6 +144,7 @@ function generateHints(count: number, chars: string): string[] {
  *   );
  * }
  * ```
+  * @category Components
  */
 export function JumpNav({
   children,

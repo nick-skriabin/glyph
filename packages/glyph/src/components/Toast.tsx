@@ -4,7 +4,8 @@ import type { Style, Color } from "../types/index.js";
 
 // ---- Types ----
 
-/** Visual variant for a toast notification. */
+/** Visual variant for a toast notification.
+ */
 export type ToastVariant = "info" | "success" | "warning" | "error";
 
 /**
@@ -64,6 +65,7 @@ let nextToastId = 0;
  * toast({ message: "Saved!", variant: "success" });
  * toast({ title: "Error", message: "Network failure", variant: "error", durationMs: 5000 });
  * ```
+  * @category Hooks
  */
 export function useToast(): (toast: Omit<Toast, "id">) => void {
   const ctx = useContext(ToastContext);
@@ -98,6 +100,7 @@ const VARIANT_COLORS: Record<ToastVariant, { bg: Color; title: Color; text: Colo
  *   );
  * }
  * ```
+  * @category Components
  */
 export function ToastHost({
   position = "bottom-right",

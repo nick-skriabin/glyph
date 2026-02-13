@@ -16,7 +16,10 @@
  * ```
  */
 
-/** Base handle shared by all focusable elements */
+/**
+ * Base handle shared by all focusable elements
+  * @category Types
+ */
 export interface FocusableHandle {
   /** Programmatically focus this element */
   focus(): void;

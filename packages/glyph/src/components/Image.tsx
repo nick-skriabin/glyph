@@ -97,6 +97,7 @@ export interface ImageProps {
  *   maxHeight={20}
  * />
  * ```
+  * @category Components
  */
 export const Image = forwardRef<ImageHandle, ImageProps>(
   function Image({

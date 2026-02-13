@@ -8,7 +8,8 @@ import { FocusScope } from "./FocusScope.js";
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface AlertOptions {
-  /** Text for the OK button (default: "OK") */
+  /** Text for the OK button (default: "OK")
+ */
   okText?: string;
   /** Style for the dialog box */
   style?: Style;
@@ -74,6 +75,7 @@ const DialogContext = createContext<DialogContextValue | null>(null);
  *   cancelText: "Keep"
  * });
  * ```
+  * @category Hooks
  */
 export function useDialog(): DialogContextValue {
   const ctx = useContext(DialogContext);
@@ -103,6 +105,7 @@ export interface DialogHostProps {
  *   );
  * }
  * ```
+  * @category Components
  */
 export function DialogHost({ children }: DialogHostProps): React.JSX.Element {
   const [dialogs, setDialogs] = useState<DialogState[]>([]);

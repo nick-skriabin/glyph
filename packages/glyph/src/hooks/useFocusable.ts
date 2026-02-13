@@ -4,7 +4,8 @@ import type { GlyphNode } from "../reconciler/nodes.js";
 import type { Key } from "../types/index.js";
 
 export interface UseFocusableOptions {
-  /** Whether the element is currently disabled (skipped in tab order) */
+  /** Whether the element is currently disabled (skipped in tab order)
+ */
   disabled?: boolean;
   /** Called when the element receives focus */
   onFocus?: () => void;
@@ -60,6 +61,7 @@ export interface UseFocusableResult {
  *   );
  * }
  * ```
+  * @category Hooks
  */
 export function useFocusable(options: UseFocusableOptions = {}): UseFocusableResult {
   const { disabled, onFocus, onBlur, onKeyPress } = options;

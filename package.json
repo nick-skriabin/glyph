@@ -6,7 +6,7 @@
     "dev": "turbo run dev --filter=basic-layout",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
-    "docs": "typedoc",
+    "docs": "bunx typedoc && bun scripts/postprocess-docs.ts .docs-out",
     "release": "bun scripts/release.ts",
     "release:minor": "bun scripts/release.ts --minor",
     "release:major": "bun scripts/release.ts --major"

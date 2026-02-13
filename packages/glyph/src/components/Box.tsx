@@ -47,6 +47,7 @@ export interface BoxProps {
  *   <Text style={{ bold: true }}>Welcome!</Text>
  * </Box>
  * ```
+  * @category Components
  */
 export const Box = forwardRef<GlyphNode, BoxProps>(
   function Box({ children, style, focusable }, ref): React.JSX.Element {

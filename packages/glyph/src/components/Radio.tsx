@@ -271,6 +271,7 @@ function RadioInner<T = string>({
  *   onChange={setSize}
  * />
  * ```
+  * @category Components
  */
 export const Radio = forwardRef(function Radio<T = string>(
   props: RadioProps<T>,

@@ -49,6 +49,7 @@ export interface TextProps {
  *   Press Tab to reach me
  * </Text>
  * ```
+  * @category Components
  */
 export const Text = forwardRef<TextHandle, TextProps>(
   function Text({ children, style, wrap, focusable, focusedStyle }, ref): React.JSX.Element {

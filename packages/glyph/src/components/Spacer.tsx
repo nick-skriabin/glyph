@@ -24,6 +24,7 @@ export interface SpacerProps {
  *   <Button label="Save" onPress={save} />
  * </Box>
  * ```
+  * @category Components
  */
 export function Spacer({ size }: SpacerProps): React.JSX.Element {
   return React.createElement("box" as any, {

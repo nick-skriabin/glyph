@@ -30,6 +30,7 @@ export type RGBColor = { r: number; g: number; b: number };
  * - {@link HexColor} — hex string (`"#ff00ff"`)
  * - {@link RGBColor} — `{ r, g, b }` object
  * - `number` — ANSI 256-color index (0–255)
+  * @category Types
  */
 export type Color = NamedColor | HexColor | RGBColor | number;
 
@@ -60,6 +61,7 @@ export type TextAlign = "left" | "center" | "right";
  *
  * Combines CSS-like flexbox layout, positioning, paint (colors, borders),
  * and text formatting into a single flat object.
+  * @category Types
  */
 export interface Style {
   // ── Layout ───────────────────────────────────────────────────
@@ -162,6 +164,7 @@ export interface Style {
  * `x`, `y`, `width`, `height` are the **outer** bounds (including border).
  * `innerX`, `innerY`, `innerWidth`, `innerHeight` are the **content** bounds
  * (after border and padding).
+  * @category Types
  */
 export interface LayoutRect {
   x: number;
@@ -179,6 +182,7 @@ export interface LayoutRect {
  *
  * Received by {@link useInput} handlers, `onKeyPress` callbacks,
  * and {@link Keybind} matching.
+  * @category Types
  */
 export interface Key {
   /** Key name (`"a"`, `"return"`, `"escape"`, `"up"`, `"space"`, …). */

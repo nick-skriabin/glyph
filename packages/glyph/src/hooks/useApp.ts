@@ -26,6 +26,7 @@ export interface UseAppResult {
  * <Text>Terminal size: {columns}×{rows}</Text>
  * <Button label="Quit" onPress={() => exit()} />
  * ```
+  * @category Hooks
  */
 export function useApp(): UseAppResult {
   const ctx = useContext(AppContext);
