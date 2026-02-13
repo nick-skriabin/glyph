@@ -114,7 +114,7 @@ function templateMainTsx(name: string): string {
     .replace(/[-_]/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
 
-  return `import React, { useState, useCallback } from "react";
+  return `import React, { useState, useCallback, useRef } from "react";
 import {
   render,
   Box,
@@ -127,6 +127,7 @@ import {
   Spacer,
   useApp,
 } from "@semos-labs/glyph";
+import type { Key, InputHandle } from "@semos-labs/glyph";
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -142,6 +143,7 @@ let nextId = 1;
 
 function App() {
   const { exit } = useApp();
+  const inputRef = useRef<InputHandle>(null);
 
   const [todos, setTodos] = useState<Todo[]>([
     { id: nextId++, text: "Learn Glyph basics", done: true },
@@ -158,7 +160,19 @@ function App() {
     if (!text) return;
     setTodos((prev) => [...prev, { id: nextId++, text, done: false }]);
     setNewTodo("");
+    // Re-focus the input after adding
+    setTimeout(() => inputRef.current?.focus(), 0);
   }, [newTodo]);
+
+  const handleInputKey = useCallback(
+    (key: Key) => {
+      if (key.name === "return") {
+        handleAdd();
+        return true; // Consume the key
+      }
+    },
+    [handleAdd],
+  );
 
   const handleToggle = useCallback((id: number) => {
     setTodos((prev) =>
@@ -199,19 +213,20 @@ function App() {
       <Box style={{ flexDirection: "row", gap: 1 }}>
         <Box style={{ flexGrow: 1 }}>
           <Input
+            ref={inputRef}
             value={newTodo}
             onChange={setNewTodo}
+            onKeyPress={handleInputKey}
             placeholder="What needs to be done?"
-            onSubmit={handleAdd}
-            style={{ bg: "blackBright", paddingX: 1 }}
-            focusedStyle={{ bg: "white", color: "black", paddingX: 1 }}
+            style={{ border: "round", borderColor: "blackBright", paddingX: 1 }}
+            focusedStyle={{ border: "round", borderColor: "cyan", color: "white", paddingX: 1 }}
           />
         </Box>
         <Button
           label=" add "
           onPress={handleAdd}
-          style={{ bg: "blackBright", paddingX: 1 }}
-          focusedStyle={{ bg: "cyan", color: "black", paddingX: 1 }}
+          style={{ border: "round", borderColor: "blackBright", paddingX: 1 }}
+          focusedStyle={{ border: "round", borderColor: "cyan", bg: "cyan", color: "black", paddingX: 1 }}
         />
       </Box>
 
@@ -226,15 +241,15 @@ function App() {
               checked={todo.done}
               onChange={() => handleToggle(todo.id)}
               label={todo.text}
-              style={todo.done ? { dim: true } : {}}
+              style={todo.done ? { dim: true, color: "blackBright" } : { color: "white" }}
               focusedStyle={{ color: "cyanBright" }}
             />
             <Spacer />
             <Button
               label=" × "
               onPress={() => handleDelete(todo.id)}
-              style={{ dim: true }}
-              focusedStyle={{ color: "red" }}
+              style={{ color: "blackBright" }}
+              focusedStyle={{ color: "redBright" }}
             />
           </Box>
         ))}
@@ -243,7 +258,7 @@ function App() {
       {/* Footer */}
       <Spacer />
       <Text style={{ dim: true }}>
-        tab navigate · space toggle · enter submit · q quit
+        tab navigate · space toggle · enter add · q quit
       </Text>
     </Box>
   );
