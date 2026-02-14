@@ -1,6 +1,7 @@
 import type { Cell } from "./framebuffer.js";
 import { Framebuffer } from "./framebuffer.js";
 import { colorToFg, colorToBg } from "./color.js";
+import stringWidth from "string-width";
 
 const ESC = "\x1b";
 const CSI = `${ESC}[`;
@@ -20,14 +21,28 @@ function buildSGR(cell: Cell): string {
   return seq;
 }
 
+/**
+ * Compute the display width of a single cell character.
+ * Fast-paths ASCII (charCode < 128 → always width 1) and only
+ * calls stringWidth for non-ASCII to keep the diff tight.
+ */
+function cellWidth(ch: string): number {
+  if (ch.length === 0) return 0;
+  // ASCII fast path (covers the vast majority of cells)
+  if (ch.length === 1 && ch.charCodeAt(0) < 128) return 1;
+  return stringWidth(ch) || 1;
+}
+
 export function diffFramebuffers(
   prev: Framebuffer,
   next: Framebuffer,
   fullRedraw: boolean,
 ): string {
   let out = "";
-  let lastX = -1;
-  let lastY = -1;
+  // cursorX/cursorY track the terminal's ACTUAL cursor position,
+  // accounting for wide characters that advance the cursor by 2.
+  let cursorX = -1;
+  let cursorY = -1;
   let lastSGR = "";
 
   for (let y = 0; y < next.height; y++) {
@@ -38,7 +53,8 @@ export function diffFramebuffers(
         if (pc && next.cellsEqual(nc, pc)) continue;
       }
 
-      if (lastY !== y || lastX !== x) {
+      // Move cursor if it isn't already at the right position
+      if (cursorY !== y || cursorX !== x) {
         out += moveCursor(x, y);
       }
 
@@ -49,8 +65,10 @@ export function diffFramebuffers(
       }
 
       out += nc.ch;
-      lastX = x + 1;
-      lastY = y;
+      // Advance cursor by the character's actual display width.
+      // Wide characters (CJK, certain Unicode) move the cursor by 2.
+      cursorX = x + cellWidth(nc.ch);
+      cursorY = y;
     }
   }
 

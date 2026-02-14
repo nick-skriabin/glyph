@@ -144,7 +144,22 @@ function paintNode(
     }
   }
 
-  // 2. Border
+  // 2. Clip-area fill: when a node has clip: true (e.g., ScrollView),
+  // explicitly fill the entire inner area with the background.
+  // This guarantees the viewport is fully overwritten every frame,
+  // preventing ghost content when children shrink or move on state changes.
+  if (style.clip && innerWidth > 0 && innerHeight > 0) {
+    const fillBg = style.bg;
+    for (let row = innerY; row < innerY + innerHeight; row++) {
+      for (let col = innerX; col < innerX + innerWidth; col++) {
+        if (isInClip(col, row, clip)) {
+          fb.setChar(col, row, " ", undefined, fillBg);
+        }
+      }
+    }
+  }
+
+  // 3. Border
   const borderChars = style.border ? getBorderChars(style.border) : null;
   if (borderChars && width >= 2 && height >= 2) {
     const bc = style.borderColor;
@@ -171,7 +186,7 @@ function paintNode(
     }
   }
 
-  // 3. Text content
+  // 4. Text content
   if (node.type === "text") {
     paintText(node, fb, clip);
   } else if (node.type === "input") {
