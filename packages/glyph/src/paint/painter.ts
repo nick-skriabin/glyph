@@ -148,8 +148,10 @@ function paintNode(
   // explicitly fill the entire inner area with the background.
   // This guarantees the viewport is fully overwritten every frame,
   // preventing ghost content when children shrink or move on state changes.
+  // Use inherited bg as fallback so we don't erase a parent's background
+  // with undefined (which would show through as the terminal default black).
   if (style.clip && innerWidth > 0 && innerHeight > 0) {
-    const fillBg = style.bg;
+    const fillBg = style.bg ?? effectiveBg;
     for (let row = innerY; row < innerY + innerHeight; row++) {
       for (let col = innerX; col < innerX + innerWidth; col++) {
         if (isInClip(col, row, clip)) {
