@@ -1,95 +1,150 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   render,
   Box,
   Text,
   Input,
+  Button,
   Keybind,
   useInput,
   useApp,
+  ScrollView,
 } from "@semos-labs/glyph";
+import type { Key } from "@semos-labs/glyph";
+
+interface KeyEvent {
+  id: number;
+  key: Key;
+  rawHex: string;
+  consumedBy: string;
+}
+
+let eventId = 0;
 
 function App() {
   const { exit } = useApp();
-  const [lastKeys, setLastKeys] = useState<string[]>([]);
+  const [events, setEvents] = useState<KeyEvent[]>([]);
+  const [shiftRCount, setShiftRCount] = useState(0);
+  const [shiftDCount, setShiftDCount] = useState(0);
+  const [shiftACount, setShiftACount] = useState(0);
+  const [mode, setMode] = useState<"global" | "input">("global");
   const [inputValue, setInputValue] = useState("");
-  const [ctrlEnterCount, setCtrlEnterCount] = useState(0);
 
-  // Log ALL keys received (runs after focused handlers if not consumed)
+  const addEvent = useCallback((key: Key, consumedBy: string) => {
+    const rawHex = [...key.sequence]
+      .map((c) => {
+        const code = c.charCodeAt(0);
+        if (code < 32 || code === 127) return `\\x${code.toString(16).padStart(2, "0")}`;
+        if (code > 126) return `\\u${code.toString(16).padStart(4, "0")}`;
+        return c;
+      })
+      .join("");
+
+    setEvents((prev) => [
+      { id: ++eventId, key, rawHex, consumedBy },
+      ...prev.slice(0, 29),
+    ]);
+  }, []);
+
   useInput((key) => {
-    const keyInfo = JSON.stringify(key, null, 0);
-    setLastKeys((prev) => [...prev.slice(-9), keyInfo]);
+    addEvent(key, "useInput");
   });
 
   return (
-    <Box
-      style={{
-        flexDirection: "column",
-        width: "100%",
-        height: "100%",
-        padding: 1,
-        gap: 1,
-      }}
-    >
-      <Text style={{ bold: true, color: "cyan" }}>
-        Keyboard Input Test - Press keys to see what your terminal sends
-      </Text>
-
-      <Box style={{ flexDirection: "column", gap: 0 }}>
-        <Text style={{ color: "yellow" }}>Last 10 keys received:</Text>
-        {lastKeys.map((k, i) => (
-          <Text key={i} style={{ color: "white", dim: i < lastKeys.length - 1 }}>
-            {k}
-          </Text>
-        ))}
-        {lastKeys.length === 0 && (
-          <Text style={{ color: "white", dim: true }}>(press any key)</Text>
-        )}
-      </Box>
-
-      <Box style={{ height: 1 }} />
-
-      <Text style={{ color: "green" }}>
-        Ctrl+Enter detected (priority keybind): {ctrlEnterCount} times
-      </Text>
-
-      {/* Priority keybind for Ctrl+Enter */}
-      <Keybind
-        keypress="ctrl+return"
-        onPress={() => {
-          setCtrlEnterCount((c) => c + 1);
-          setLastKeys((prev) => [...prev.slice(-9), ">>> CTRL+ENTER KEYBIND FIRED <<<"]);
-        }}
-        priority
-      />
-
-      <Box style={{ height: 1 }} />
-
-      <Box style={{ flexDirection: "column", gap: 0 }}>
-        <Text style={{ color: "magenta" }}>Input (type here, then try Ctrl+Enter):</Text>
-        <Input
-          value={inputValue}
-          onChange={setInputValue}
-          style={{ border: "round", borderColor: "magenta", padding: 1 }}
-          focusedStyle={{ borderColor: "magentaBright" }}
-          placeholder="Type something..."
-          onKeyPress={(key) => {
-            setLastKeys((prev) => [...prev.slice(-9), `[Input got] ${JSON.stringify(key)}`]);
-            return false; // Don't consume, let it propagate
-          }}
-        />
-      </Box>
-
-      <Box style={{ flexGrow: 1 }} />
-
+    <Box style={{ flexDirection: "column", width: "100%", height: "100%" }}>
+      {/* Header */}
       <Box style={{ bg: "cyan" }}>
         <Text style={{ bold: true, color: "black" }}>
-          Press 'q' to quit | Try: Ctrl+Enter, Enter, Ctrl+C, F1, Arrow keys
+          {" "}🔍 Key Debug{" "}
+        </Text>
+        <Text style={{ color: "black" }}>
+          {" "}Shift+R:{shiftRCount} Shift+D:{shiftDCount} Shift+A:{shiftACount}{" "}
+        </Text>
+        <Box style={{ flexGrow: 1 }} />
+        <Text style={{ color: "black", dim: true }}> Ctrl+C quit </Text>
+      </Box>
+
+      {/* Keybinds (invisible) */}
+      <Keybind
+        keypress="shift+r"
+        onPress={() => {
+          setShiftRCount((c) => c + 1);
+          addEvent({ name: "r", shift: true, sequence: "R" }, "⚡ Keybind[shift+r]");
+        }}
+      />
+      <Keybind
+        keypress="shift+d"
+        onPress={() => {
+          setShiftDCount((c) => c + 1);
+          addEvent({ name: "d", shift: true, sequence: "D" }, "⚡ Keybind[shift+d]");
+        }}
+      />
+      <Keybind
+        keypress="shift+a"
+        onPress={() => {
+          setShiftACount((c) => c + 1);
+          addEvent({ name: "a", shift: true, sequence: "A" }, "⚡ Keybind[shift+a]");
+        }}
+      />
+
+      {/* Mode bar */}
+      <Box style={{ bg: mode === "global" ? "blue" : "magenta" }}>
+        <Button
+          label=" Global "
+          onPress={() => setMode("global")}
+          style={{ bg: mode === "global" ? "white" : undefined, color: mode === "global" ? "black" : "white" }}
+        />
+        <Button
+          label=" Input "
+          onPress={() => setMode("input")}
+          style={{ bg: mode === "input" ? "white" : undefined, color: mode === "input" ? "black" : "white" }}
+        />
+        <Text style={{ color: "white" }}>
+          {mode === "global" ? " keys → useInput" : " keys → Input component"}
         </Text>
       </Box>
 
-      <Keybind keypress="q" onPress={() => exit()} />
-      <Keybind keypress="ctrl+c" onPress={() => exit()} />
+      {/* Input (only in input mode) */}
+      {mode === "input" && (
+        <Input
+          value={inputValue}
+          onChange={setInputValue}
+          autoFocus
+          style={{ bg: "#1a1a2e" }}
+          focusedStyle={{ bg: "#16213e" }}
+          placeholder="Type here..."
+          onKeyPress={(key) => {
+            addEvent(key, "Input.onKeyPress");
+            return false;
+          }}
+        />
+      )}
+
+      {/* Event log */}
+      <Box style={{ flexDirection: "column", flexGrow: 1 }}>
+        <ScrollView>
+          {events.length === 0 && (
+            <Text style={{ dim: true }}> Press any key...</Text>
+          )}
+          {events.map((ev) => (
+            <Box key={ev.id}>
+              <Text style={{ color: "cyan" }}>
+                {" "}{ev.key.name}
+              </Text>
+              <Text style={{ color: "yellow" }}>
+                {ev.key.shift ? " S" : "  "}
+                {ev.key.ctrl ? " C" : "  "}
+                {ev.key.alt ? " A" : "  "}
+                {ev.key.meta ? " M" : "  "}
+              </Text>
+              <Text style={{ dim: true }}> seq={ev.rawHex}</Text>
+              <Text style={{ color: ev.consumedBy.startsWith("⚡") ? "green" : "white", bold: ev.consumedBy.startsWith("⚡") }}>
+                {" "}→ {ev.consumedBy}
+              </Text>
+            </Box>
+          ))}
+        </ScrollView>
+      </Box>
     </Box>
   );
 }

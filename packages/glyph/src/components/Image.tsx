@@ -447,23 +447,22 @@ export const Image = forwardRef<ImageHandle, ImageProps>(
 
   switch (state) {
     case "placeholder":
-      statusIcon = isRemote ? "🌐" : "🖼️";
+      statusIcon = isRemote ? "↓" : "■";
       displayContent = `${statusIcon} ${imageName}`;
       break;
     case "loading":
-      statusIcon = "⏳";
-      displayContent = `${statusIcon} Loading...`;
+      displayContent = "… Loading";
       break;
     case "loaded":
       // When loaded inline, show empty space (image is rendered via overlay)
       displayContent = null;
       break;
     case "preview":
-      statusIcon = "👁️";
-      displayContent = `${statusIcon} Previewing...`;
+      statusIcon = "▸";
+      displayContent = `${statusIcon} Previewing`;
       break;
     case "error":
-      statusIcon = "❌";
+      statusIcon = "×";
       displayContent = `${statusIcon} ${errorMsg || "Error"}`;
       break;
   }
