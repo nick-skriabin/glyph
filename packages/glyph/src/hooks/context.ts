@@ -82,9 +82,32 @@ export interface ScrollViewBounds {
   scrollOffset: number;
 }
 
+/**
+ * Options for {@link ScrollViewContextValue.scrollTo} and
+ * {@link FocusableHandle.scrollIntoView}.
+ *
+ * @example
+ * ```tsx
+ * ref.current?.scrollIntoView({ block: "center" });
+ * ```
+ * @category Types
+ */
+export interface ScrollIntoViewOptions {
+  /**
+   * Where to align the element relative to the viewport.
+   * - `"nearest"` — minimal scroll to make visible (default)
+   * - `"start"` — align element top with viewport top
+   * - `"center"` — center element in viewport
+   * - `"end"` — align element bottom with viewport bottom
+   */
+  block?: "start" | "center" | "end" | "nearest";
+}
+
 export interface ScrollViewContextValue {
   /** Get the current visible bounds of the ScrollView */
   getBounds(): ScrollViewBounds;
+  /** Scroll to make the given node visible within this ScrollView */
+  scrollTo(node: GlyphNode, options?: ScrollIntoViewOptions): void;
 }
 
 export const ScrollViewContext = createContext<ScrollViewContextValue | null>(null);

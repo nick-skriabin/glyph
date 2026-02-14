@@ -2,7 +2,8 @@ import React, { useContext, useEffect, useRef, useState, useCallback, forwardRef
 import type { ReactNode } from "react";
 import type { Style, Key, ListHandle } from "../types/index.js";
 import type { GlyphNode } from "../reconciler/nodes.js";
-import { FocusContext, InputContext } from "../hooks/context.js";
+import { FocusContext, InputContext, ScrollViewContext } from "../hooks/context.js";
+import type { ScrollIntoViewOptions } from "../hooks/context.js";
 
 /**
  * Information passed to each item's render function.
@@ -87,6 +88,7 @@ export const List = forwardRef<ListHandle, ListProps>(
 
   const focusCtx = useContext(FocusContext);
   const inputCtx = useContext(InputContext);
+  const scrollCtx = useContext(ScrollViewContext);
   const nodeRef = useRef<GlyphNode | null>(null);
   const focusIdRef = useRef<string | null>(null);
   const onSelectRef = useRef(onSelect);
@@ -114,7 +116,10 @@ export const List = forwardRef<ListHandle, ListProps>(
     get selectedIndex() {
       return selectedIndex;
     },
-  }), [focusCtx, isFocused, selectedIndex]);
+    scrollIntoView(opts?: ScrollIntoViewOptions) {
+      if (scrollCtx && nodeRef.current) scrollCtx.scrollTo(nodeRef.current, opts);
+    },
+  }), [focusCtx, isFocused, selectedIndex, scrollCtx]);
   const lastKeyRef = useRef<string | null>(null);
 
   const setIndex = useCallback(

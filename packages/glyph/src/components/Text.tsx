@@ -2,7 +2,8 @@ import React, { forwardRef, useContext, useEffect, useRef, useState, useImperati
 import type { Style, TextHandle } from "../types/index.js";
 import type { ReactNode } from "react";
 import type { GlyphNode } from "../reconciler/nodes.js";
-import { FocusContext } from "../hooks/context.js";
+import { FocusContext, ScrollViewContext } from "../hooks/context.js";
+import type { ScrollIntoViewOptions } from "../hooks/context.js";
 
 /**
  * Props for the {@link Text} component.
@@ -54,6 +55,7 @@ export interface TextProps {
 export const Text = forwardRef<TextHandle, TextProps>(
   function Text({ children, style, wrap, focusable, focusedStyle }, ref): React.JSX.Element {
     const focusCtx = useContext(FocusContext);
+    const scrollCtx = useContext(ScrollViewContext);
     const nodeRef = useRef<GlyphNode | null>(null);
     const focusIdRef = useRef<string | null>(null);
     const [isFocused, setIsFocused] = useState(false);
@@ -73,7 +75,10 @@ export const Text = forwardRef<TextHandle, TextProps>(
       get isFocused() {
         return isFocused;
       },
-    }), [focusCtx, isFocused]);
+      scrollIntoView(opts?: ScrollIntoViewOptions) {
+        if (scrollCtx && nodeRef.current) scrollCtx.scrollTo(nodeRef.current, opts);
+      },
+    }), [focusCtx, isFocused, scrollCtx]);
 
     // Track focus state
     useEffect(() => {

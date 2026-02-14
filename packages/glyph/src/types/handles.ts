@@ -27,6 +27,25 @@ export interface FocusableHandle {
   blur(): void;
   /** Whether this element is currently focused */
   readonly isFocused: boolean;
+  /**
+   * Scroll the nearest parent {@link ScrollView} to make this element visible.
+   * Behaves like the DOM `Element.scrollIntoView()` method.
+   * No-op if the element is not inside a ScrollView.
+   *
+   * @param options - Alignment options (default: `{ block: "nearest" }`)
+   *
+   * @example
+   * ```tsx
+   * const inputRef = useRef<InputHandle>(null);
+   *
+   * // Minimal scroll — just enough to make it visible
+   * inputRef.current?.scrollIntoView();
+   *
+   * // Center the element in the viewport
+   * inputRef.current?.scrollIntoView({ block: "center" });
+   * ```
+   */
+  scrollIntoView(options?: import("../hooks/context.js").ScrollIntoViewOptions): void;
 }
 
 /** Handle for Button */

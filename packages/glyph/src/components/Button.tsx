@@ -1,7 +1,8 @@
 import React, { useContext, useEffect, useRef, useState, useCallback, useImperativeHandle, forwardRef } from "react";
 import type { ReactNode } from "react";
 import type { Style, Key, ButtonHandle } from "../types/index.js";
-import { FocusContext, InputContext } from "../hooks/context.js";
+import { FocusContext, InputContext, ScrollViewContext } from "../hooks/context.js";
+import type { ScrollIntoViewOptions } from "../hooks/context.js";
 import type { GlyphNode } from "../reconciler/nodes.js";
 
 /**
@@ -48,6 +49,7 @@ export const Button = forwardRef<ButtonHandle, ButtonProps>(
   function Button({ onPress, label, style, focusedStyle, children, disabled }, ref) {
     const focusCtx = useContext(FocusContext);
     const inputCtx = useContext(InputContext);
+    const scrollCtx = useContext(ScrollViewContext);
     const nodeRef = useRef<GlyphNode | null>(null);
     const focusIdRef = useRef<string | null>(null);
     const onPressRef = useRef(onPress);
@@ -72,7 +74,10 @@ export const Button = forwardRef<ButtonHandle, ButtonProps>(
       get isFocused() {
         return isFocused;
       },
-    }), [focusCtx, isFocused]);
+      scrollIntoView(opts?: ScrollIntoViewOptions) {
+        if (scrollCtx && nodeRef.current) scrollCtx.scrollTo(nodeRef.current, opts);
+      },
+    }), [focusCtx, isFocused, scrollCtx]);
 
     // Register with focus system
     useEffect(() => {

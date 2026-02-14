@@ -10,6 +10,7 @@ import React, { useContext, useEffect, useRef, useState, useCallback, forwardRef
 import type { Style, Key, ImageHandle } from "../types/index.js";
 import type { GlyphNode } from "../reconciler/nodes.js";
 import { FocusContext, InputContext, LayoutContext, ImageOverlayContext, ScrollViewContext } from "../hooks/context.js";
+import type { ScrollIntoViewOptions } from "../hooks/context.js";
 import type { LayoutRect } from "../types/index.js";
 import { loadImage, getImageName, isRemoteUrl, detectImageFormat, convertToPng } from "../runtime/imageLoader.js";
 import { getImageDimensions } from "../runtime/imageProtocol.js";
@@ -157,7 +158,10 @@ export const Image = forwardRef<ImageHandle, ImageProps>(
     get isFocused() {
       return isFocused;
     },
-  }), [focusCtx, isFocused]);
+    scrollIntoView(opts?: ScrollIntoViewOptions) {
+      if (scrollViewCtx && nodeRef.current) scrollViewCtx.scrollTo(nodeRef.current, opts);
+    },
+  }), [focusCtx, isFocused, scrollViewCtx]);
 
   const imageName = placeholder || getImageName(src);
   const isRemote = isRemoteUrl(src);

@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
 import type { Style, Key, CheckboxHandle } from "../types/index.js";
-import { FocusContext, InputContext } from "../hooks/context.js";
+import { FocusContext, InputContext, ScrollViewContext } from "../hooks/context.js";
+import type { ScrollIntoViewOptions } from "../hooks/context.js";
 import type { GlyphNode } from "../reconciler/nodes.js";
 
 /**
@@ -54,6 +55,7 @@ export const Checkbox = forwardRef<CheckboxHandle, CheckboxProps>(
   }, ref) {
     const focusCtx = useContext(FocusContext);
     const inputCtx = useContext(InputContext);
+    const scrollCtx = useContext(ScrollViewContext);
     const nodeRef = useRef<GlyphNode | null>(null);
     const focusIdRef = useRef<string | null>(null);
     const onChangeRef = useRef(onChange);
@@ -83,7 +85,10 @@ export const Checkbox = forwardRef<CheckboxHandle, CheckboxProps>(
       get checked() {
         return checkedRef.current;
       },
-    }), [focusCtx, isFocused]);
+      scrollIntoView(opts?: ScrollIntoViewOptions) {
+        if (scrollCtx && nodeRef.current) scrollCtx.scrollTo(nodeRef.current, opts);
+      },
+    }), [focusCtx, isFocused, scrollCtx]);
 
     // Register with focus system
     useEffect(() => {

@@ -12,6 +12,7 @@ import type { ReactNode } from "react";
 import type { Style, Key, Color, SelectHandle } from "../types/index.js";
 import type { GlyphNode } from "../reconciler/nodes.js";
 import { FocusContext, InputContext, AppContext, ScrollViewContext } from "../hooks/context.js";
+import type { ScrollIntoViewOptions } from "../hooks/context.js";
 import { useLayout } from "../hooks/useLayout.js";
 
 /**
@@ -138,7 +139,10 @@ export const Select = forwardRef<SelectHandle, SelectProps>(
     get isOpen() {
       return isOpen;
     },
-  }), [focusCtx, isFocused, value, isOpen]);
+    scrollIntoView(opts?: ScrollIntoViewOptions) {
+      if (scrollViewCtx && nodeRef.current) scrollViewCtx.scrollTo(nodeRef.current, opts);
+    },
+  }), [focusCtx, isFocused, value, isOpen, scrollViewCtx]);
   const [highlightIndex, setHighlightIndex] = useState(0);
   const [searchText, setSearchText] = useState("");
   const [scrollOffset, setScrollOffset] = useState(0);

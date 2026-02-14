@@ -5,7 +5,7 @@ import type { GlyphNode } from "../reconciler/nodes.js";
 import { useLayout } from "../hooks/useLayout.js";
 import { useInput } from "../hooks/useInput.js";
 import { FocusContext, LayoutContext, ScrollViewContext } from "../hooks/context.js";
-import type { ScrollViewContextValue, ScrollViewBounds } from "../hooks/context.js";
+import type { ScrollViewContextValue, ScrollViewBounds, ScrollIntoViewOptions } from "../hooks/context.js";
 
 /**
  * Visible range passed to the render function in virtualized mode.
@@ -206,18 +206,12 @@ export function ScrollView({
   // Always clamp the effective offset used for rendering
   const effectiveOffset = Math.max(0, Math.min(offset, maxOffset));
 
-  // Provide ScrollView context for children (e.g., Select) to know their boundaries
-  const scrollViewContextValue = useMemo((): ScrollViewContextValue => ({
-    getBounds: (): ScrollViewBounds => {
-      const viewportY = viewportLayout.y;
-      return {
-        visibleTop: viewportY,
-        visibleBottom: viewportY + viewportHeight,
-        viewportHeight,
-        scrollOffset: effectiveOffset,
-      };
-    },
-  }), [viewportLayout.y, viewportHeight, effectiveOffset]);
+  // Keep refs for lazy access in scrollTo (called outside render cycle)
+  const offsetRef = useRef(effectiveOffset);
+  offsetRef.current = effectiveOffset;
+  const viewportHeightRef = useRef(viewportHeight);
+  viewportHeightRef.current = viewportHeight;
+  const setOffsetRef = useRef<(n: number) => void>(() => {});
 
   const setOffset = useCallback(
     (next: number) => {
@@ -230,6 +224,53 @@ export function ScrollView({
     },
     [isControlled, onScroll, maxOffset],
   );
+  setOffsetRef.current = setOffset;
+
+  // Provide ScrollView context for children (e.g., Select) to know their boundaries
+  const scrollViewContextValue = useMemo((): ScrollViewContextValue => ({
+    getBounds: (): ScrollViewBounds => {
+      const viewportY = viewportLayout.y;
+      return {
+        visibleTop: viewportY,
+        visibleBottom: viewportY + viewportHeight,
+        viewportHeight,
+        scrollOffset: effectiveOffset,
+      };
+    },
+    scrollTo: (node: GlyphNode, options?: ScrollIntoViewOptions): void => {
+      if (!contentRef.current) return;
+
+      const block = options?.block ?? "nearest";
+      const contentTopY = contentRef.current.layout?.y ?? 0;
+      const elementTop = node.layout.y - contentTopY;
+      const elementBottom = elementTop + node.layout.height;
+      const curOffset = offsetRef.current;
+      const vpHeight = viewportHeightRef.current;
+
+      switch (block) {
+        case "start":
+          setOffsetRef.current(elementTop);
+          break;
+        case "center":
+          setOffsetRef.current(elementTop - Math.floor((vpHeight - node.layout.height) / 2));
+          break;
+        case "end":
+          setOffsetRef.current(elementBottom - vpHeight);
+          break;
+        case "nearest":
+        default: {
+          const visibleTop = curOffset;
+          const visibleBottom = curOffset + vpHeight;
+          if (elementTop < visibleTop) {
+            setOffsetRef.current(elementTop);
+          } else if (elementBottom > visibleBottom) {
+            setOffsetRef.current(elementBottom - vpHeight);
+          }
+          break;
+        }
+      }
+    },
+  }), [viewportLayout.y, viewportHeight, effectiveOffset]);
 
   // Re-clamp when content/viewport changes
   useEffect(() => {

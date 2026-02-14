@@ -52,6 +52,7 @@ export { useLayout } from "./hooks/useLayout.js";
 export { useApp } from "./hooks/useApp.js";
 export { useFocusRegistry } from "./hooks/useFocusRegistry.js";
 export type { FocusableElement, FocusRegistryValue } from "./hooks/useFocusRegistry.js";
+export { useScrollIntoView } from "./hooks/useScrollIntoView.js";
 
 // Utilities
 export { createMask, masks } from "./utils/mask.js";
@@ -87,3 +88,4 @@ export type {
   ImageHandle,
   TextHandle,
 } from "./types/index.js";
+export type { ScrollIntoViewOptions } from "./hooks/context.js";

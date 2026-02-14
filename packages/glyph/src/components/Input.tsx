@@ -1,6 +1,7 @@
 import React, { useState, useContext, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import type { Style, Key, InputHandle } from "../types/index.js";
-import { InputContext, FocusContext, LayoutContext } from "../hooks/context.js";
+import { InputContext, FocusContext, LayoutContext, ScrollViewContext } from "../hooks/context.js";
+import type { ScrollIntoViewOptions } from "../hooks/context.js";
 import type { GlyphNode } from "../reconciler/nodes.js";
 import { wrapLines } from "../layout/textMeasure.js";
 
@@ -265,6 +266,7 @@ export const Input = forwardRef<InputHandle, InputProps>(
   const inputCtx = useContext(InputContext);
   const focusCtx = useContext(FocusContext);
   const layoutCtx = useContext(LayoutContext);
+  const scrollCtx = useContext(ScrollViewContext);
   const nodeRef = useRef<GlyphNode | null>(null);
   const focusIdRef = useRef<string | null>(null);
 
@@ -289,7 +291,10 @@ export const Input = forwardRef<InputHandle, InputProps>(
     get value() {
       return workingValueRef.current;
     },
-  }), [focusCtx, isFocused]);
+    scrollIntoView(opts?: ScrollIntoViewOptions) {
+      if (scrollCtx && nodeRef.current) scrollCtx.scrollTo(nodeRef.current, opts);
+    },
+  }), [focusCtx, isFocused, scrollCtx]);
 
   // Subscribe to layout changes to get innerWidth for visual line navigation
   useEffect(() => {

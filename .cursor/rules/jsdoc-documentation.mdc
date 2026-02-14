@@ -1,0 +1,106 @@
+---
+description: JSDoc documentation standards for all user-facing code in the glyph package
+globs: "packages/glyph/src/**/*.ts,packages/glyph/src/**/*.tsx"
+---
+
+# JSDoc Documentation Standards
+
+Every user-facing export (component, hook, utility function, type, interface) **must** have JSDoc documentation so it can be automatically extracted by the doc generator (TypeDoc → Starlight).
+
+## Required structure
+
+### Components
+
+```tsx
+/**
+ * Short one-line summary of what the component does.
+ *
+ * Longer description with behavior details, keyboard shortcuts, etc.
+ *
+ * @example
+ * ```tsx
+ * <Component prop="value" onPress={() => doSomething()} />
+ * ```
+ * @category Components
+ */
+export const Component = forwardRef<Handle, Props>(...);
+```
+
+### Hooks
+
+```tsx
+/**
+ * Short one-line summary of the hook's purpose.
+ *
+ * Longer description, when to use it, constraints.
+ *
+ * @param paramName - Description of parameter.
+ * @returns Description of return value.
+ *
+ * @example
+ * ```tsx
+ * const result = useMyHook(options);
+ * ```
+ * @category Hooks
+ */
+export function useMyHook(...) { ... }
+```
+
+### Types & Interfaces
+
+```tsx
+/**
+ * Short description of what this type represents.
+ *
+ * @example
+ * ```tsx
+ * const opts: MyOptions = { block: "center" };
+ * ```
+ * @category Types
+ */
+export interface MyOptions {
+  /** Description of each property */
+  block?: "start" | "center" | "end";
+}
+```
+
+### Utility functions
+
+```tsx
+/**
+ * Short summary of the utility.
+ *
+ * @param input - Parameter description.
+ * @returns What it returns.
+ *
+ * @example
+ * ```tsx
+ * const result = myUtil(input);
+ * ```
+ * @category Utilities
+ */
+export function myUtil(...) { ... }
+```
+
+## Rules
+
+1. **Every exported symbol** must have a JSDoc block with at least a summary line.
+2. **`@category`** tag is **required** on every primary export. Use one of:
+   - `Components` — React components
+   - `Hooks` — React hooks (`use*`)
+   - `Types` — interfaces, type aliases, enums
+   - `Utilities` — standalone functions and constants
+3. **`@example`** is required on components, hooks, and utility functions. Include a runnable TSX/TS code block.
+4. **`@param`** and **`@returns`** are required on functions and hooks that accept arguments or return values.
+5. **Interface/type properties** must each have a `/** */` doc comment describing them.
+6. **Props interfaces** (e.g. `ButtonProps`) are documented per-property — they don't need a `@category` tag since they get merged into the parent component's page.
+7. **Handle interfaces** (e.g. `InputHandle`) extending `FocusableHandle` should have a brief `/** */` one-liner.
+8. The `@category` tag controls how the doc generator groups pages. Adding a new export with the correct `@category` is all that's needed — no config files to update.
+
+## Reference files
+
+- Components: [Button.tsx](mdc:packages/glyph/src/components/Button.tsx), [Input.tsx](mdc:packages/glyph/src/components/Input.tsx)
+- Hooks: [useApp.ts](mdc:packages/glyph/src/hooks/useApp.ts), [useScrollIntoView.ts](mdc:packages/glyph/src/hooks/useScrollIntoView.ts)
+- Types: [handles.ts](mdc:packages/glyph/src/types/handles.ts), [style.ts](mdc:packages/glyph/src/types/style.ts)
+- Utilities: [mask.ts](mdc:packages/glyph/src/utils/mask.ts), [render.ts](mdc:packages/glyph/src/render.ts)
+- Doc generation: [typedoc.json](mdc:typedoc.json), [postprocess-docs.ts](mdc:scripts/postprocess-docs.ts)

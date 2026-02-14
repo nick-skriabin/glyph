@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 import type { Style, Key, RadioHandle } from "../types/index.js";
-import { FocusContext, InputContext } from "../hooks/context.js";
+import { FocusContext, InputContext, ScrollViewContext } from "../hooks/context.js";
+import type { ScrollIntoViewOptions } from "../hooks/context.js";
 import type { GlyphNode } from "../reconciler/nodes.js";
 
 /**
@@ -62,6 +63,7 @@ function RadioInner<T = string>({
 }: RadioProps<T> & { forwardedRef?: React.Ref<RadioHandle<T>> }): React.JSX.Element {
   const focusCtx = useContext(FocusContext);
   const inputCtx = useContext(InputContext);
+  const scrollCtx = useContext(ScrollViewContext);
   const nodeRef = useRef<GlyphNode | null>(null);
   const focusIdRef = useRef<string | null>(null);
   const onChangeRef = useRef(onChange);
@@ -89,7 +91,10 @@ function RadioInner<T = string>({
     get value() {
       return value;
     },
-  }), [focusCtx, isFocused, value]);
+    scrollIntoView(opts?: ScrollIntoViewOptions) {
+      if (scrollCtx && nodeRef.current) scrollCtx.scrollTo(nodeRef.current, opts);
+    },
+  }), [focusCtx, isFocused, value, scrollCtx]);
   const [highlightedIndex, setHighlightedIndex] = useState(() => {
     // Initialize to the selected item or first enabled item
     const selectedIdx = items.findIndex((item) => item.value === value);
