@@ -18,7 +18,7 @@
 
 /**
  * Base handle shared by all focusable elements
-  * @category Types
+  * @category Core
  */
 export interface FocusableHandle {
   /** Programmatically focus this element */

@@ -22,7 +22,7 @@ import type { GlyphNode } from "../reconciler/nodes.js";
  * scrollIntoView();                       // minimal scroll
  * scrollIntoView({ block: "center" });    // center in viewport
  * ```
- * @category Hooks
+ * @category Navigation
  */
 export function useScrollIntoView(
   nodeRef: { current: GlyphNode | null },

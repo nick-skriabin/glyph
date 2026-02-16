@@ -61,7 +61,7 @@ export interface UseFocusableResult {
  *   );
  * }
  * ```
-  * @category Hooks
+  * @category Navigation
  */
 export function useFocusable(options: UseFocusableOptions = {}): UseFocusableResult {
   const { disabled, onFocus, onBlur, onKeyPress } = options;

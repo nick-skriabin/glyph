@@ -38,10 +38,12 @@ const INDEX_FILE  = join(SRC_ROOT, "index.ts");
 
 /** Canonical category names → output folder */
 const CATEGORY_FOLDERS: Record<string, string> = {
-  Components: "components",
-  Hooks:      "hooks",
-  Utilities:  "utilities",
-  Types:      "types",
+  Layout:      "layout",
+  Form:        "form",
+  Navigation:  "navigation",
+  Keybindings: "keybindings",
+  Feedback:    "feedback",
+  Core:        "core",
 };
 
 // ────────────────────────────────────────────────────────────────────
@@ -154,10 +156,10 @@ function findCategoryTags(sourceFile: string, symbolsInFile: string[]): Category
     const exportIdx = lines.findIndex((line) => {
       const t = line.trimStart();
       return (
-        t.startsWith(`export const ${sym} `) || t.startsWith(`export const ${sym}=`) ||
+        t.startsWith(`export const ${sym} `) || t.startsWith(`export const ${sym}=`) || t.startsWith(`export const ${sym}:`) ||
         t.startsWith(`export function ${sym}(`) || t.startsWith(`export function ${sym}<`) || t.startsWith(`export function ${sym} `) ||
         t.startsWith(`export interface ${sym} `) || t.startsWith(`export interface ${sym}<`) || t.startsWith(`export interface ${sym}{`) ||
-        t.startsWith(`export type ${sym} `) || t.startsWith(`export type ${sym}=`) ||
+        t.startsWith(`export type ${sym} `) || t.startsWith(`export type ${sym}=`) || t.startsWith(`export type ${sym}<`) ||
         t.startsWith(`export class ${sym} `) || t.startsWith(`export class ${sym}{`) ||
         t.startsWith(`export enum ${sym} `) || t.startsWith(`export enum ${sym}{`)
       );
@@ -391,7 +393,15 @@ function rewriteLinks(
     // Build path relative to the DESTINATION page (not folder).
     // Starlight treats each page as a directory, so from "components/jump-nav"
     // to "components/focus-scope" we need "../focus-scope", not "focus-scope".
-    const newRel = relative(destPage, mapping.target) || basename(mapping.target);
+    const newRel = relative(destPage, mapping.target);
+
+    // Self-reference: link points to the current page
+    if (!newRel) {
+      const finalAnchor = mapping.anchor || anchorPart;
+      if (finalAnchor) return `[${text}](#${finalAnchor})`;
+      return text; // plain text, no link needed
+    }
+
     const finalAnchor = mapping.anchor || anchorPart;
     const finalHref = finalAnchor ? `${newRel}#${finalAnchor}` : newRel;
 
@@ -574,16 +584,29 @@ for (const [, page] of primaries) {
 
     const raw = readFileSync(fullPath, "utf-8");
     const title = extractTitle(raw);
-    const body = extractBody(raw);
+    let body = extractBody(raw);
 
-    if (body.trim()) {
+    if (!body.trim()) continue;
+
+    const mergedDestPage = `${page.folder}/${page.slug}`;
+
+    // For Props types: strip the heading and the "Props for the [X]…" description.
+    // Keep only the ## Properties table and everything below it.
+    if (merged.endsWith("Props")) {
+      const headingMatch = body.match(/^## /m);
+      if (headingMatch && headingMatch.index != null) {
+        body = body.slice(headingMatch.index);
+      }
+      parts.push("");
+      parts.push("---");
+      parts.push("");
+      parts.push(rewriteLinks(body, dirname(td), mergedDestPage, linkMap));
+    } else {
       parts.push("");
       parts.push("---");
       parts.push("");
       parts.push(`## ${title || merged}`);
       parts.push("");
-      // Rewrite links — use full page path so Starlight's directory routing works
-      const mergedDestPage = `${page.folder}/${page.slug}`;
       parts.push(rewriteLinks(body, dirname(td), mergedDestPage, linkMap));
     }
   }
@@ -601,10 +624,12 @@ for (const [, page] of primaries) {
 
 // Step 6: Generate index
 const categoryLabels: Record<string, string> = {
-  Components: "Components",
-  Hooks:      "Hooks",
-  Utilities:  "Utilities",
-  Types:      "Types",
+  Layout:      "Layout",
+  Form:        "Form",
+  Navigation:  "Navigation",
+  Keybindings: "Keybindings",
+  Feedback:    "Feedback",
+  Core:        "Core",
 };
 
 const indexParts: string[] = [

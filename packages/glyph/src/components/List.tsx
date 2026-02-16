@@ -68,7 +68,7 @@ export interface ListProps {
  *   onSelect={(index) => console.log("Selected:", items[index])}
  * />
  * ```
-  * @category Components
+  * @category Navigation
  */
 export const List = forwardRef<ListHandle, ListProps>(
   function List({

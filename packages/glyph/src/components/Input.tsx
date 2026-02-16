@@ -240,7 +240,7 @@ export interface InputProps {
  *   placeholder="(555) 555-5555"
  * />
  * ```
-  * @category Components
+  * @category Form
  */
 export const Input = forwardRef<InputHandle, InputProps>(
   function Input(props, ref) {

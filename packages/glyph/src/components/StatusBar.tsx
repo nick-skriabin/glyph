@@ -18,7 +18,6 @@ import { FocusScope } from "./FocusScope.js";
 
 /**
  * Visual type for a status bar message.
- * @category Types
  */
 export type MessageType = "info" | "success" | "warning" | "error" | "progress";
 
@@ -31,7 +30,6 @@ export type MessageType = "info" | "success" | "warning" | "error" | "progress";
  * bar.showMessage({ text: "Saved!", type: "success" });
  * bar.showMessage({ text: "Syncing…", type: "progress", durationMs: 0 });
  * ```
- * @category Types
  */
 export interface StatusBarMessage {
   /** Message text. */
@@ -50,7 +48,6 @@ export interface StatusBarMessage {
 
 /**
  * Value exposed by the StatusBar context.
- * @category Types
  */
 export interface StatusBarContextValue {
   /**
@@ -80,7 +77,7 @@ const StatusBarContext = createContext<StatusBarContextValue | null>(null);
  * bar.showMessage({ text: "Loading…", type: "progress", durationMs: 0 });
  * bar.clearMessage();
  * ```
- * @category Hooks
+ * @category Feedback
  */
 export function useStatusBar(): StatusBarContextValue {
   const ctx = useContext(StatusBarContext);
@@ -371,7 +368,7 @@ type StatusBarMode = "idle" | "command" | "search";
  *   return <Button label="Save" onPress={save} />;
  * }
  * ```
- * @category Components
+ * @category Feedback
  */
 export function StatusBar({
   // Command mode

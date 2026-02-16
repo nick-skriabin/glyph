@@ -43,7 +43,7 @@ export interface ButtonProps {
  *   <Text style={{ bold: true }}>🚀 Launch</Text>
  * </Button>
  * ```
-  * @category Components
+  * @category Form
  */
 export const Button = forwardRef<ButtonHandle, ButtonProps>(
   function Button({ onPress, label, style, focusedStyle, children, disabled }, ref) {

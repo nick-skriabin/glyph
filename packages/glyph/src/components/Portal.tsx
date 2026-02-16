@@ -29,7 +29,7 @@ export interface PortalProps {
  *   </Portal>
  * )}
  * ```
-  * @category Components
+  * @category Layout
  */
 export function Portal({ children, zIndex = 1000 }: PortalProps): React.JSX.Element {
   return React.createElement(

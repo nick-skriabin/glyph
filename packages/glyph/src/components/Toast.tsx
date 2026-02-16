@@ -65,7 +65,7 @@ let nextToastId = 0;
  * toast({ message: "Saved!", variant: "success" });
  * toast({ title: "Error", message: "Network failure", variant: "error", durationMs: 5000 });
  * ```
-  * @category Hooks
+  * @category Feedback
  */
 export function useToast(): (toast: Omit<Toast, "id">) => void {
   const ctx = useContext(ToastContext);
@@ -100,7 +100,7 @@ const VARIANT_COLORS: Record<ToastVariant, { bg: Color; title: Color; text: Colo
  *   );
  * }
  * ```
-  * @category Components
+  * @category Feedback
  */
 export function ToastHost({
   position = "bottom-right",

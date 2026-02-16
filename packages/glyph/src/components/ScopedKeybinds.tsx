@@ -7,7 +7,6 @@ import type { KeybindRegistry } from "../utils/keybinds.js";
  *
  * Actions whose handler is `undefined` are skipped (no `Keybind` is rendered).
  *
- * @category Types
  */
 export type ActionHandlers = Record<string, (() => void) | undefined>;
 
@@ -76,7 +75,7 @@ export interface ScopedKeybindsProps<S extends string = string> {
  *   priority
  * />
  * ```
- * @category Components
+ * @category Keybindings
  */
 export function ScopedKeybinds<S extends string>({
   registry,

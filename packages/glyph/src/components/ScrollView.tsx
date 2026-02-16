@@ -117,7 +117,7 @@ export interface ScrollViewProps {
  *   }
  * </ScrollView>
  * ```
-  * @category Components
+  * @category Layout
  */
 export function ScrollView({
   children,

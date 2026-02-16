@@ -19,7 +19,7 @@ import type { Key } from "../types/index.js";
  *   if (key.name === "q" && !key.ctrl) exit();
  * });
  * ```
-  * @category Hooks
+  * @category Keybindings
  */
 export function useInput(
   handler: (key: Key) => void,

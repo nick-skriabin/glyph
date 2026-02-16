@@ -157,7 +157,7 @@ function applySgrParams(params: number[], style: AnsiStyle): void {
  * 
  * @param input String potentially containing ANSI escape codes
  * @returns Array of segments with text and associated style
-  * @category Utilities
+  * @category Core
  */
 export function parseAnsi(input: string): StyledSegment[] {
   const segments: StyledSegment[] = [];
@@ -214,7 +214,7 @@ export function parseAnsi(input: string): StyledSegment[] {
 /**
  * Strip all ANSI escape codes from a string.
  * Useful for measuring visible width.
-  * @category Utilities
+  * @category Core
  */
 export function stripAnsi(input: string): string {
   // eslint-disable-next-line no-control-regex

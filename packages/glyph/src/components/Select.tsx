@@ -87,7 +87,7 @@ export interface SelectProps {
  * // Force dropdown to always open upward
  * <Select items={items} value={v} onChange={setV} openDirection="up" />
  * ```
-  * @category Components
+  * @category Form
  */
 export const Select = forwardRef<SelectHandle, SelectProps>(
   function Select({

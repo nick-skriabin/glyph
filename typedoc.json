@@ -24,19 +24,24 @@
     }
   },
   "groupOrder": [
-    "Components",
-    "Hooks",
-    "Utilities",
+    "Layout",
+    "Form",
+    "Navigation",
+    "Keybindings",
+    "Feedback",
+    "Core",
     "Type Aliases",
     "Interfaces",
     "Functions",
     "*"
   ],
   "categoryOrder": [
-    "Components",
-    "Hooks",
-    "Utilities",
-    "Types",
+    "Layout",
+    "Form",
+    "Navigation",
+    "Keybindings",
+    "Feedback",
+    "Core",
     "*"
   ],
   "hidePageHeader": false,

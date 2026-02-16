@@ -30,7 +30,7 @@ export type RGBColor = { r: number; g: number; b: number };
  * - {@link HexColor} — hex string (`"#ff00ff"`)
  * - {@link RGBColor} — `{ r, g, b }` object
  * - `number` — ANSI 256-color index (0–255)
- * @category Types
+ * @category Core
  */
 export type Color = NamedColor | HexColor | RGBColor | number;
 
@@ -76,7 +76,6 @@ export type TextAlign = "left" | "center" | "right";
  * ```tsx
  * <Box style={{ flexDirection: { base: "column", md: "row" } }} />
  * ```
- * @category Types
  */
 export type Breakpoint = "base" | "sm" | "md" | "lg" | "xl";
 
@@ -94,7 +93,6 @@ export type Breakpoint = "base" | "sm" | "md" | "lg" | "xl";
  * // Responsive — different values at different terminal widths
  * padding: { base: 0, sm: 1, lg: 2 }
  * ```
- * @category Types
  */
 export type Responsive<T> = T | { [K in Breakpoint]?: T };
 
@@ -119,7 +117,7 @@ export type Responsive<T> = T | { [K in Breakpoint]?: T };
  *   }}
  * />
  * ```
- * @category Types
+ * @category Core
  */
 export interface Style {
   // ── Layout ───────────────────────────────────────────────────
@@ -223,8 +221,6 @@ export interface Style {
  * Produced by the responsive resolution pass and consumed by the internal
  * layout (Yoga) and paint systems. You normally don't need this type
  * directly — use {@link Style} instead.
- *
- * @category Types
  */
 export type ResolvedStyle = {
   [K in keyof Style]: [NonNullable<Style[K]>] extends [Responsive<infer T>]
@@ -238,7 +234,7 @@ export type ResolvedStyle = {
  * `x`, `y`, `width`, `height` are the **outer** bounds (including border).
  * `innerX`, `innerY`, `innerWidth`, `innerHeight` are the **content** bounds
  * (after border and padding).
- * @category Types
+ * @category Core
  */
 export interface LayoutRect {
   x: number;
@@ -256,7 +252,7 @@ export interface LayoutRect {
  *
  * Received by {@link useInput} handlers, `onKeyPress` callbacks,
  * and {@link Keybind} matching.
- * @category Types
+ * @category Core
  */
 export interface Key {
   /** Key name (`"a"`, `"return"`, `"escape"`, `"up"`, `"space"`, …). */
@@ -308,7 +304,7 @@ export interface AppHandle {
  * // Match when terminal is between 40–120 columns and at least 20 rows tall
  * const isMedium = useMediaQuery({ minColumns: 40, maxColumns: 120, minRows: 20 });
  * ```
- * @category Types
+ * @category Layout
  */
 export interface MediaQueryInput {
   /** Minimum terminal width in columns (inclusive). */

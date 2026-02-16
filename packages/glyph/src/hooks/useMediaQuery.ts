@@ -54,7 +54,7 @@ function evaluateQuery(
  * // Compound query — all conditions must match
  * const isDesktop = useMediaQuery({ minColumns: 120, minRows: 30 });
  * ```
- * @category Hooks
+ * @category Layout
  */
 export function useMediaQuery(query: MediaQueryInput): boolean {
   const ctx = useContext(AppContext);

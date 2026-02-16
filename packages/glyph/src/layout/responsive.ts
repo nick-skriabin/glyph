@@ -15,7 +15,7 @@ import type { GlyphNode } from "../reconciler/nodes.js";
  * | `lg`       | 120     |
  * | `xl`       | 160     |
  *
- * @category Utilities
+ * @category Layout
  */
 export const defaultBreakpoints: Readonly<Record<Breakpoint, number>> = {
   base: 0,
@@ -70,7 +70,7 @@ function isResponsiveObject(value: unknown): value is Record<string, unknown> {
  * resolveResponsiveValue(42, 100);
  * // => 42  (plain values pass through)
  * ```
- * @category Utilities
+ * @category Layout
  */
 export function resolveResponsiveValue<T>(
   value: T | { [K in Breakpoint]?: T },
@@ -109,7 +109,7 @@ export function resolveResponsiveValue<T>(
  * );
  * // => { padding: 1, bg: "red" }
  * ```
- * @category Utilities
+ * @category Layout
  */
 export function resolveStyle(
   style: Style,

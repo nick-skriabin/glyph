@@ -76,7 +76,7 @@ function matchesKey(matcher: KeyMatcher, key: Key): boolean {
  * // Only fires when a specific element is focused
  * <Keybind keypress="delete" onPress={handleDelete} whenFocused={itemFocusId} />
  * ```
-  * @category Components
+  * @category Keybindings
  */
 export function Keybind({
   keypress,

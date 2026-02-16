@@ -32,7 +32,7 @@ interface UseFocusResult {
  *   {focused ? "I have focus!" : "Press Tab"}
  * </Box>
  * ```
-  * @category Hooks
+  * @category Navigation
  */
 export function useFocus(nodeRef?: { current: GlyphNode | null }): UseFocusResult {
   const focusCtx = useContext(FocusContext);

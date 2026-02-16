@@ -54,7 +54,7 @@ export interface MenuProps {
  *   highlightColor="magenta"
  * />
  * ```
-  * @category Components
+  * @category Navigation
  */
 export function Menu({
   items,

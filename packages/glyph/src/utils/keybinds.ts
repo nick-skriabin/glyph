@@ -40,7 +40,6 @@
  *   command: "delete",
  * };
  * ```
- * @category Types
  */
 export interface KeybindDef {
   /**
@@ -60,8 +59,6 @@ export interface KeybindDef {
 
 /**
  * A command entry extracted from the registry.
- *
- * @category Types
  */
 export interface CommandDef {
   /** The command name (from {@link KeybindDef.command}). */
@@ -74,8 +71,6 @@ export interface CommandDef {
 
 /**
  * Options for {@link KeybindRegistry.getKeybindsForHelp}.
- *
- * @category Types
  */
 export interface HelpOptions<S extends string> {
   /** Related sub-mode scopes to include after the primary scope. */
@@ -102,7 +97,6 @@ export interface HelpOptions<S extends string> {
  * const match = registry.findCommand("goto tomorrow");
  * const help = registry.getKeybindsForHelp("timeline");
  * ```
- * @category Types
  */
 export interface KeybindRegistry<S extends string = string> {
   /** The raw scope→keybinds mapping. */
@@ -175,7 +169,7 @@ export interface KeybindRegistry<S extends string = string> {
  *   ],
  * });
  * ```
- * @category Utilities
+ * @category Keybindings
  */
 export function createKeybindRegistry<S extends string>(
   scopes: Record<S, KeybindDef[]>,

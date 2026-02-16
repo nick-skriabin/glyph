@@ -31,7 +31,7 @@ export interface FocusScopeProps {
  *   </Box>
  * </FocusScope>
  * ```
-  * @category Components
+  * @category Navigation
  */
 export function FocusScope({ trap = false, children }: FocusScopeProps): React.JSX.Element {
   const focusCtx = useContext(FocusContext);

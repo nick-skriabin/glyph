@@ -57,7 +57,7 @@ import type { RenderOptions, AppHandle, LayoutRect } from "./types/index.js";
  *
  * render(<App />);
  * ```
-  * @category Utilities
+  * @category Core
  */
 export function render(
   element: ReactElement,

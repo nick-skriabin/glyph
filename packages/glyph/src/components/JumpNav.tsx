@@ -144,7 +144,7 @@ function generateHints(count: number, chars: string): string[] {
  *   );
  * }
  * ```
-  * @category Components
+  * @category Navigation
  */
 export function JumpNav({
   children,

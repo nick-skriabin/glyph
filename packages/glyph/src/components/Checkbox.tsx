@@ -40,7 +40,7 @@ export interface CheckboxProps {
  *   focusedStyle={{ bg: "cyan", color: "black" }}
  * />
  * ```
-  * @category Components
+  * @category Form
  */
 export const Checkbox = forwardRef<CheckboxHandle, CheckboxProps>(
   function Checkbox({

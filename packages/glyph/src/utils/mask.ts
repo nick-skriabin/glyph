@@ -78,7 +78,7 @@ function isValidChar(char: string, type: MaskChar["type"]): boolean {
  * 
  * @param maskOrOptions - Mask pattern string or options object
  * @returns onBeforeChange handler function
-  * @category Utilities
+  * @category Form
  */
 export function createMask(
   maskOrOptions: string | MaskOptions
@@ -137,7 +137,7 @@ export function createMask(
 
 /**
  * Pre-built mask patterns for common use cases.
-  * @category Utilities
+  * @category Form
  */
 export const masks = {
   /** US Phone: (123) 456-7890 */

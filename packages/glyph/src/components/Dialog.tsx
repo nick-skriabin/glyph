@@ -75,7 +75,7 @@ const DialogContext = createContext<DialogContextValue | null>(null);
  *   cancelText: "Keep"
  * });
  * ```
-  * @category Hooks
+  * @category Feedback
  */
 export function useDialog(): DialogContextValue {
   const ctx = useContext(DialogContext);
@@ -105,7 +105,7 @@ export interface DialogHostProps {
  *   );
  * }
  * ```
-  * @category Components
+  * @category Feedback
  */
 export function DialogHost({ children }: DialogHostProps): React.JSX.Element {
   const [dialogs, setDialogs] = useState<DialogState[]>([]);

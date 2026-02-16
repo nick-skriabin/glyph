@@ -52,7 +52,7 @@ export interface MatchProps extends MediaQueryInput {
  *   <DashboardLayout />
  * </Match>
  * ```
- * @category Components
+ * @category Core
  */
 export function Match({
   children,

@@ -94,7 +94,7 @@ export interface ScrollViewBounds {
  * ```tsx
  * ref.current?.scrollIntoView({ block: "center" });
  * ```
- * @category Types
+ * @category Navigation
  */
 export interface ScrollIntoViewOptions {
   /**
