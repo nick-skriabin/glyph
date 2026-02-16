@@ -10,6 +10,7 @@
 </p>
 
 <p align="center">
+  <a href="#why-glyph">Why Glyph</a> &bull;
   <a href="#quick-start">Quick Start</a> &bull;
   <a href="#components">Components</a> &bull;
   <a href="#hooks">Hooks</a> &bull;
@@ -47,6 +48,31 @@ Build real terminal applications with React. Glyph provides a full component mod
 | **True Colors** | Named colors, hex, RGB, 256-palette. Auto-contrast text on colored backgrounds |
 | **Borders** | Single, double, rounded, and ASCII border styles |
 | **TypeScript** | Full type coverage. Every prop, style, and hook is typed |
+
+---
+
+## Why Glyph
+
+There are several great terminal UI tools out there. Here's how Glyph compares:
+
+| | **Glyph** | **Ink** | **Blessed** | **Textual** | **Bubbletea** |
+|---|:---:|:---:|:---:|:---:|:---:|
+| **Language** | TypeScript | TypeScript | JavaScript | Python | Go |
+| **Paradigm** | React (JSX) | React (JSX) | Imperative | Declarative (Python) | Elm architecture |
+| **Layout** | Yoga flexbox | Yoga flexbox | Custom grid | CSS subset | Manual (lipgloss) |
+| **Built-in components** | 20+ | ~4 (Box, Text, Spacer, Newline) | 30+ (widgets) | 30+ (widgets) | BYO (bubbles library) |
+| **Input, Select, Checkbox, …** | ✅ Built-in | ❌ Community packages | ✅ Built-in | ✅ Built-in | ❌ Separate library |
+| **Focus system** | ✅ Tab, scopes, trapping | ⚠️ Basic | ⚠️ Basic | ✅ Full | ❌ Manual |
+| **JumpNav (vim-hints)** | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Rendering** | Character-level diffing | Full re-render | Full re-render | Dirty widget re-render | Full re-render |
+| **Framebuffer** | ✅ Double-buffered | ❌ | ❌ | ❌ | ❌ |
+| **True color (hex, RGB)** | ✅ + auto-contrast | Via chalk | Partial | ✅ | Via lipgloss |
+| **Image support** | ✅ Kitty/iTerm2 | ❌ | ❌ | ❌ | ❌ |
+| **Toasts & Dialogs** | ✅ Built-in | ❌ | ❌ | ✅ | ❌ |
+| **Borders** | 4 styles | ❌ (ink-box) | ✅ | ✅ | Via lipgloss |
+| **Maintained** | ✅ Active | ⚠️ Slow | ❌ Abandoned | ✅ Active | ✅ Active |
+
+**TL;DR** &mdash; If you know React, Glyph gives you the full power of a component model you already understand, with the richest built-in component set in the JS ecosystem, flexbox layout, and a rendering engine that only touches the characters that actually changed.
 
 ---
 
