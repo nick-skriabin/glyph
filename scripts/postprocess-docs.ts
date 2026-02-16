@@ -350,7 +350,9 @@ function buildLinkMap(
     for (const merged of page.mergedSymbols) {
       const mKey = typedocFiles.get(merged);
       if (mKey) {
-        linkMap.set(mKey, { target: destPath, anchor: toAnchor(merged) });
+        // Props types have their heading stripped — the anchor becomes #properties
+        const anchor = merged.endsWith("Props") ? "properties" : toAnchor(merged);
+        linkMap.set(mKey, { target: destPath, anchor });
       }
     }
   }
