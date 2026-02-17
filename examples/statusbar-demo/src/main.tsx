@@ -3,14 +3,12 @@ import {
   render,
   Box,
   Text,
-  Input,
   ScrollView,
-  Keybind,
-  FocusScope,
   useApp,
   useStatusBar,
   StatusBar,
   ScopedKeybinds,
+  HelpDialog,
   createKeybindRegistry,
 } from "@semos-labs/glyph";
 
@@ -105,112 +103,16 @@ function Clock() {
   return <Text style={{ bold: true }}>{str}</Text>;
 }
 
-// ── Help overlay ────────────────────────────────────────────────────
+// ── Help options ─────────────────────────────────────────────────────
 //
-// Reads keybinds from the registry to dynamically generate help content.
+// Scope titles for the help dialog. The HelpDialog component handles
+// everything else — filtering, scrolling, toggle keybind.
 
-function HelpOverlay({ context, onClose }: { context: Scope; onClose: () => void }) {
-  const allSections = registry.getKeybindsForHelp(context, {
-    scopeTitles: { global: "Global", list: "Note List", detail: "Note Detail" },
-  });
-
-  const [filter, setFilter] = useState("");
-
-  // Filter sections/keybinds by query
-  const sections = useMemo(() => {
-    if (!filter.trim()) return allSections;
-    const q = filter.toLowerCase();
-    return allSections
-      .map((section: { title: string; keybinds: { display: string; description: string }[] }) => ({
-        ...section,
-        keybinds: section.keybinds.filter(
-          (kb: { display: string; description: string }) =>
-            kb.display.toLowerCase().includes(q) ||
-            kb.description.toLowerCase().includes(q),
-        ),
-      }))
-      .filter((section: { keybinds: unknown[] }) => section.keybinds.length > 0);
-  }, [allSections, filter]);
-
-  const handleKeyPress = useCallback(
-    (key: { name?: string }): boolean | void => {
-      if (key.name === "escape") {
-        if (filter) {
-          setFilter("");
-        } else {
-          onClose();
-        }
-        return true;
-      }
-    },
-    [filter, onClose],
-  );
-
-  return (
-    <Box
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: "100%",
-        height: "100%",
-        zIndex: 100,
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <FocusScope trap>
-        <Box
-          style={{
-            width: 48,
-            height: "80%",
-            bg: "blackBright",
-            padding: 1,
-            flexDirection: "column",
-          }}
-        >
-          {/* Header */}
-          <Box style={{ flexDirection: "row", justifyContent: "space-between", paddingBottom: 1 }}>
-            <Text style={{ bold: true, color: "cyanBright" }}>Keyboard Shortcuts</Text>
-            <Text style={{ dim: true }}>Esc to close</Text>
-          </Box>
-
-          {/* Search input */}
-          <Box style={{ flexDirection: "row", paddingBottom: 1 }}>
-            <Text style={{ color: "cyan" }}>/</Text>
-            <Input
-              value={filter}
-              onChange={setFilter}
-              onKeyPress={handleKeyPress}
-              placeholder="Filter shortcuts…"
-              autoFocus
-              style={{ flexGrow: 1 }}
-            />
-          </Box>
-
-          {/* Keybind list */}
-          <ScrollView style={{ flexGrow: 1 }}>
-            {sections.length === 0 ? (
-              <Text style={{ dim: true }}>No matching shortcuts</Text>
-            ) : (
-              sections.map((section: { title: string; keybinds: { display: string; description: string }[] }, i: number) => (
-                <Box key={i} style={{ flexDirection: "column", paddingBottom: 1 }}>
-                  <Text style={{ bold: true, dim: true }}>{section.title}</Text>
-                  {section.keybinds.map((kb: { display: string; description: string }, j: number) => (
-                    <Box key={j} style={{ flexDirection: "row", gap: 1 }}>
-                      <Text style={{ color: "cyan", width: 12 }}>{kb.display}</Text>
-                      <Text>{kb.description}</Text>
-                    </Box>
-                  ))}
-                </Box>
-              ))
-            )}
-          </ScrollView>
-        </Box>
-      </FocusScope>
-    </Box>
-  );
-}
+const helpScopeTitles: Partial<Record<Scope, string>> = {
+  global: "Global",
+  list: "Note List",
+  detail: "Note Detail",
+};
 
 // ── Root ─────────────────────────────────────────────────────────────
 //
@@ -573,7 +475,13 @@ function NoteApp({
         />
         <ScopedKeybinds registry={registry} scope="global" handlers={globalHandlers} />
 
-        {showHelp && <HelpOverlay context="detail" onClose={() => setShowHelp(false)} />}
+        <HelpDialog
+          registry={registry}
+          context="detail"
+          helpOptions={{ scopeTitles: helpScopeTitles }}
+          open={showHelp}
+          onClose={() => setShowHelp(false)}
+        />
       </Box>
     );
   }
@@ -656,7 +564,13 @@ function NoteApp({
       <ScopedKeybinds registry={registry} scope="list" handlers={listHandlers} />
       <ScopedKeybinds registry={registry} scope="global" handlers={globalHandlers} />
 
-      {showHelp && <HelpOverlay context="list" onClose={() => setShowHelp(false)} />}
+      <HelpDialog
+        registry={registry}
+        context="list"
+        helpOptions={{ scopeTitles: helpScopeTitles }}
+        open={showHelp}
+        onClose={() => setShowHelp(false)}
+      />
     </Box>
   );
 }

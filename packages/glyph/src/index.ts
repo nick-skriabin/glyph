@@ -46,6 +46,8 @@ export { Match } from "./components/Match.js";
 export type { MatchProps } from "./components/Match.js";
 export { ScopedKeybinds } from "./components/ScopedKeybinds.js";
 export type { ScopedKeybindsProps, ActionHandlers } from "./components/ScopedKeybinds.js";
+export { HelpDialog } from "./components/HelpDialog.js";
+export type { HelpDialogProps } from "./components/HelpDialog.js";
 export { StatusBar, useStatusBar } from "./components/StatusBar.js";
 export type { StatusBarProps, StatusBarMessage, StatusBarContextValue, MessageType } from "./components/StatusBar.js";
 
