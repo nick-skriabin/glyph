@@ -431,21 +431,21 @@ function QuickLinks() {
           style={{ color: C.dim }}
           focusedStyle={{ color: "cyanBright", underline: true }}
         >
-          <Text>documentation</Text>
+          <Text>📚 documentation</Text>
         </Link>
         <Link
           href="https://example.com/status"
           style={{ color: C.dim }}
           focusedStyle={{ color: "cyanBright", underline: true }}
         >
-          <Text>status page</Text>
+          <Text>🟢 status page</Text>
         </Link>
         <Link
           href="https://example.com/support"
           style={{ color: C.dim }}
           focusedStyle={{ color: "cyanBright", underline: true }}
         >
-          <Text>support</Text>
+          <Text>💬 support</Text>
         </Link>
       </Box>
     </Box>

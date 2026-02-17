@@ -6,7 +6,7 @@ import { getBorderChars } from "./borders.js";
 import { isLightColor } from "./color.js";
 import type { Color, ResolvedStyle } from "../types/index.js";
 import { wrapLines } from "../layout/textMeasure.js";
-import stringWidth from "string-width";
+import { ttyStringWidth, ttyCharWidth } from "../utils/ttyWidth.js";
 import { parseAnsi, stripAnsi } from "./ansi.js";
 
 interface ClipRect {
@@ -223,6 +223,13 @@ function setClipped(
 ): void {
   if (isInClip(x, y, clip)) {
     fb.setChar(x, y, ch, fg, bg, bold, dim, italic, underline);
+    // Wide characters (CJK, supplementary-plane emoji) occupy 2 terminal
+    // cells.  Mark the trailing cell as a continuation so the diff engine
+    // doesn't overwrite the right half of the glyph.
+    const w = ttyCharWidth(ch);
+    if (w === 2 && isInClip(x + 1, y, clip)) {
+      fb.setChar(x + 1, y, "", fg, bg, bold, dim, italic, underline);
+    }
   }
 }
 
@@ -317,7 +324,7 @@ function paintText(node: GlyphNode, fb: Framebuffer, clip: ClipRect): void {
   // Paint each wrapped line
   for (let lineIdx = 0; lineIdx < wrappedLines.length && lineIdx < innerHeight; lineIdx++) {
     const line = wrappedLines[lineIdx]!;
-    const visibleWidth = line.reduce((sum, sc) => sum + stringWidth(sc.char), 0);
+    const visibleWidth = line.reduce((sum, sc) => sum + ttyCharWidth(sc.char), 0);
     
     let offsetX = 0;
     if (textAlign === "center") {
@@ -328,7 +335,7 @@ function paintText(node: GlyphNode, fb: Framebuffer, clip: ClipRect): void {
     
     let col = 0;
     for (const { char, style } of line) {
-      const charWidth = stringWidth(char);
+      const charWidth = ttyCharWidth(char);
       if (charWidth > 0) {
         const fg = autoContrastFg(style.color, style.bg);
         setClipped(
@@ -424,7 +431,7 @@ function paintInput(
       }
       
       cursorScreenLine = wrappedLinesBefore + subLineIdx;
-      cursorScreenCol = stringWidth(rawLines[logicalLine]!.slice(charsProcessed, charsProcessed + (offsetInLogicalLine - charsProcessed)));
+      cursorScreenCol = ttyStringWidth(rawLines[logicalLine]!.slice(charsProcessed, charsProcessed + (offsetInLogicalLine - charsProcessed)));
     }
 
     // Auto-scroll to keep cursor visible
@@ -438,7 +445,7 @@ function paintInput(
       let col = 0;
       for (const char of line) {
         if (col >= innerWidth) break;
-        const charWidth = stringWidth(char);
+        const charWidth = ttyCharWidth(char);
         if (charWidth > 0) {
           setClipped(
             fb, clip,
@@ -486,7 +493,7 @@ function paintInput(
     let col = 0;
     for (const char of displayText) {
       if (col >= innerWidth) break;
-      const charWidth = stringWidth(char);
+      const charWidth = ttyCharWidth(char);
       if (charWidth > 0) {
         setClipped(
           fb, clip,

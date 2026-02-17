@@ -1,4 +1,4 @@
-import stringWidth from "string-width";
+import { ttyStringWidth, ttyCharWidth } from "../utils/ttyWidth.js";
 import { MeasureMode } from "yoga-layout";
 import type { WrapMode } from "../types/index.js";
 
@@ -18,7 +18,7 @@ export function measureText(
     // No constraint: measure as-is
     let maxW = 0;
     for (const line of lines) {
-      const w = stringWidth(line);
+      const w = ttyStringWidth(line);
       if (w > maxW) maxW = w;
     }
     return { width: maxW, height: lines.length };
@@ -29,7 +29,7 @@ export function measureText(
 
   let maxW = 0;
   for (const line of wrappedLines) {
-    const w = stringWidth(line);
+    const w = ttyStringWidth(line);
     if (w > maxW) maxW = w;
   }
 
@@ -44,7 +44,7 @@ export function wrapLines(
   const result: string[] = [];
 
   for (const line of lines) {
-    const lineWidth = stringWidth(line);
+    const lineWidth = ttyStringWidth(line);
 
     if (lineWidth <= maxWidth) {
       result.push(line);
@@ -73,7 +73,7 @@ function truncateLine(text: string, maxWidth: number): string {
   let result = "";
   let width = 0;
   for (const char of text) {
-    const charWidth = stringWidth(char);
+    const charWidth = ttyCharWidth(char);
     if (width + charWidth > maxWidth) break;
     result += char;
     width += charWidth;
@@ -86,7 +86,7 @@ function truncateWithEllipsis(text: string, maxWidth: number): string {
     return maxWidth === 1 ? "…" : "";
   }
   const truncated = truncateLine(text, maxWidth - 1);
-  if (stringWidth(truncated) < stringWidth(text)) {
+  if (ttyStringWidth(truncated) < ttyStringWidth(text)) {
     return truncated + "…";
   }
   return text;
@@ -121,7 +121,7 @@ function wordWrap(text: string, maxWidth: number): string[] {
         } else {
           // Word is too long - break it character by character
           for (const c of wordBuffer) {
-            const cw = stringWidth(c);
+            const cw = ttyCharWidth(c);
             if (currentWidth + cw > maxWidth && currentLine.length > 0) {
               lines.push(currentLine);
               currentLine = "";
@@ -153,7 +153,7 @@ function wordWrap(text: string, maxWidth: number): string[] {
     } else if (char) {
       // Building a word
       wordBuffer += char;
-      wordBufferWidth += stringWidth(char);
+      wordBufferWidth += ttyCharWidth(char);
     }
   }
   

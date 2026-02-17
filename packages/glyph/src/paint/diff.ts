@@ -1,7 +1,7 @@
 import type { Cell } from "./framebuffer.js";
 import { Framebuffer } from "./framebuffer.js";
 import { colorToFg, colorToBg } from "./color.js";
-import stringWidth from "string-width";
+import { ttyCharWidth } from "../utils/ttyWidth.js";
 
 const ESC = "\x1b";
 const CSI = `${ESC}[`;
@@ -19,18 +19,6 @@ function buildSGR(cell: Cell): string {
   if (cell.fg != null) seq += colorToFg(cell.fg);
   if (cell.bg != null) seq += colorToBg(cell.bg);
   return seq;
-}
-
-/**
- * Compute the display width of a single cell character.
- * Fast-paths ASCII (charCode < 128 → always width 1) and only
- * calls stringWidth for non-ASCII to keep the diff tight.
- */
-function cellWidth(ch: string): number {
-  if (ch.length === 0) return 0;
-  // ASCII fast path (covers the vast majority of cells)
-  if (ch.length === 1 && ch.charCodeAt(0) < 128) return 1;
-  return stringWidth(ch) || 1;
 }
 
 export function diffFramebuffers(
@@ -71,6 +59,12 @@ export function diffFramebuffers(
   for (let y = 0; y < next.height; y++) {
     for (let x = 0; x < next.width; x++) {
       const nc = next.get(x, y)!;
+
+      // Skip continuation cells — these are the trailing half of a wide
+      // character (CJK / emoji).  The leading cell already wrote the full
+      // glyph and advanced the terminal cursor past this column.
+      if (nc.ch === "") continue;
+
       if (!fullRedraw) {
         const pc = prev.get(x, y);
         if (pc && next.cellsEqual(nc, pc)) continue;
@@ -90,7 +84,7 @@ export function diffFramebuffers(
       out += nc.ch;
       // Advance cursor by the character's actual display width.
       // Wide characters (CJK, certain Unicode) move the cursor by 2.
-      cursorX = x + cellWidth(nc.ch);
+      cursorX = x + ttyCharWidth(nc.ch);
       cursorY = y;
     }
   }

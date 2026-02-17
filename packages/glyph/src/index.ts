@@ -70,6 +70,7 @@ export { createMask, masks } from "./utils/mask.js";
 export type { MaskOptions } from "./utils/mask.js";
 export { createKeybindRegistry } from "./utils/keybinds.js";
 export type { KeybindDef, CommandDef, KeybindRegistry, HelpOptions } from "./utils/keybinds.js";
+export { ttyStringWidth, ttyCharWidth } from "./utils/ttyWidth.js";
 export { parseAnsi, stripAnsi } from "./paint/ansi.js";
 export type { AnsiStyle, StyledSegment } from "./paint/ansi.js";
 export { detectTerminalCapabilities, supportsInlineImages } from "./runtime/terminalCapabilities.js";
