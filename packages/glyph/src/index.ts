@@ -42,6 +42,8 @@ export { JumpNav } from "./components/JumpNav.js";
 export type { JumpNavProps } from "./components/JumpNav.js";
 export { Image } from "./components/Image.js";
 export type { ImageProps, ImageState } from "./components/Image.js";
+export { Link } from "./components/Link.js";
+export type { LinkProps } from "./components/Link.js";
 export { Match } from "./components/Match.js";
 export type { MatchProps } from "./components/Match.js";
 export { ScopedKeybinds } from "./components/ScopedKeybinds.js";
@@ -102,6 +104,7 @@ export type {
   RadioHandle,
   ListHandle,
   ImageHandle,
+  LinkHandle,
   TextHandle,
 } from "./types/index.js";
 export type { ScrollIntoViewOptions } from "./hooks/context.js";

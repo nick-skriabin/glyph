@@ -27,5 +27,6 @@ export type {
   RadioHandle,
   ListHandle,
   ImageHandle,
+  LinkHandle,
   TextHandle,
 } from "./handles.js";

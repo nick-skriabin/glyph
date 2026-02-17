@@ -86,5 +86,8 @@ export interface ListHandle extends FocusableHandle {
 /** Handle for Image */
 export interface ImageHandle extends FocusableHandle {}
 
+/** Handle for Link */
+export interface LinkHandle extends FocusableHandle {}
+
 /** Handle for Text (when focusable) */
 export interface TextHandle extends FocusableHandle {}

@@ -5,6 +5,7 @@ import {
   Text,
   Input,
   Button,
+  Link,
   Select,
   Checkbox,
   Radio,
@@ -22,16 +23,16 @@ import {
 // Muted interface with vivid progress bars only.
 
 const C = {
-  surface:  "#1c1c1c",       // card / panel surfaces
+  surface: "#1c1c1c",       // card / panel surfaces
   elevated: "#282828",       // inputs, hover states
   // Progress bar colors — the only vivid ones
-  green:    "#22c55e",       // healthy / success
-  amber:    "#f59e0b",       // degraded / warning
-  red:      "#ef4444",       // down / error
+  green: "#22c55e",       // healthy / success
+  amber: "#f59e0b",       // degraded / warning
+  red: "#ef4444",       // down / error
   // UI text — all subdued
-  text:     "#b3b3b3",       // primary text — neutral gray
-  dim:      "#808080",       // secondary text
-  muted:    "#555555",       // labels / hints
+  text: "#b3b3b3",       // primary text — neutral gray
+  dim: "#808080",       // secondary text
+  muted: "#555555",       // labels / hints
 } as const;
 
 // ── Data ───────────────────────────────────────────────────────
@@ -48,30 +49,30 @@ type ServiceStatus = Service["status"];
 type EventKind = "info" | "warning" | "error";
 
 const SERVICES: Service[] = [
-  { name: "api-gateway",  status: "healthy",  cpu: 0.34, mem: 0.41, rps: 12847 },
-  { name: "auth-service", status: "healthy",  cpu: 0.15, mem: 0.33, rps: 5621  },
-  { name: "user-service", status: "degraded", cpu: 0.78, mem: 0.82, rps: 8934  },
-  { name: "payment-svc",  status: "healthy",  cpu: 0.31, mem: 0.55, rps: 3201  },
-  { name: "search-index", status: "down",     cpu: 0.0,  mem: 0.0,  rps: 0     },
-  { name: "cdn-proxy",    status: "healthy",  cpu: 0.42, mem: 0.61, rps: 24103 },
+  { name: "api-gateway", status: "healthy", cpu: 0.34, mem: 0.41, rps: 12847 },
+  { name: "auth-service", status: "healthy", cpu: 0.15, mem: 0.33, rps: 5621 },
+  { name: "user-service", status: "degraded", cpu: 0.78, mem: 0.82, rps: 8934 },
+  { name: "payment-svc", status: "healthy", cpu: 0.31, mem: 0.55, rps: 3201 },
+  { name: "search-index", status: "down", cpu: 0.0, mem: 0.0, rps: 0 },
+  { name: "cdn-proxy", status: "healthy", cpu: 0.42, mem: 0.61, rps: 24103 },
 ];
 
 const EVENTS: { time: string; msg: string; kind: EventKind }[] = [
-  { time: "14:32", msg: "Deployment v2.4.1 started",        kind: "info"    },
-  { time: "14:31", msg: "search-index health check failed", kind: "error"   },
-  { time: "14:28", msg: "user-service CPU spike (78%)",     kind: "warning" },
-  { time: "14:25", msg: "SSL certificate renewed",          kind: "info"    },
-  { time: "14:20", msg: "Backup completed (42 GB)",         kind: "info"    },
-  { time: "14:15", msg: "Rate limit: 203.0.113.5",          kind: "warning" },
-  { time: "14:12", msg: "New API key issued",               kind: "info"    },
-  { time: "14:08", msg: "Container restarted: email",       kind: "warning" },
+  { time: "14:32", msg: "Deployment v2.4.1 started", kind: "info" },
+  { time: "14:31", msg: "search-index health check failed", kind: "error" },
+  { time: "14:28", msg: "user-service CPU spike (78%)", kind: "warning" },
+  { time: "14:25", msg: "SSL certificate renewed", kind: "info" },
+  { time: "14:20", msg: "Backup completed (42 GB)", kind: "info" },
+  { time: "14:15", msg: "Rate limit: 203.0.113.5", kind: "warning" },
+  { time: "14:12", msg: "New API key issued", kind: "info" },
+  { time: "14:08", msg: "Container restarted: email", kind: "warning" },
 ];
 
 const BRANCHES = [
-  { label: "main",            value: "main" },
-  { label: "develop",         value: "develop" },
+  { label: "main", value: "main" },
+  { label: "develop", value: "develop" },
   { label: "feature/auth-v2", value: "feature/auth-v2" },
-  { label: "hotfix/login",    value: "hotfix/login" },
+  { label: "hotfix/login", value: "hotfix/login" },
 ];
 
 const STATUS_DOT: Record<ServiceStatus, string> = {
@@ -412,6 +413,45 @@ function ActivityLog() {
 
 // ── Footer ─────────────────────────────────────────────────────
 
+function QuickLinks() {
+  return (
+    <Box
+      style={{
+        flexDirection: "column",
+        bg: C.surface,
+        paddingX: 1,
+        paddingTop: 1,
+        flexShrink: 0,
+      }}
+    >
+      <Text style={{ bold: true, color: C.text }}>links</Text>
+      <Box style={{ flexDirection: "row", gap: 2 }}>
+        <Link
+          href="https://github.com"
+          style={{ color: C.dim }}
+          focusedStyle={{ color: "cyanBright", underline: true }}
+        >
+          <Text>documentation</Text>
+        </Link>
+        <Link
+          href="https://example.com/status"
+          style={{ color: C.dim }}
+          focusedStyle={{ color: "cyanBright", underline: true }}
+        >
+          <Text>status page</Text>
+        </Link>
+        <Link
+          href="https://example.com/support"
+          style={{ color: C.dim }}
+          focusedStyle={{ color: "cyanBright", underline: true }}
+        >
+          <Text>support</Text>
+        </Link>
+      </Box>
+    </Box>
+  );
+}
+
 function Footer() {
   const { columns, rows } = useApp();
 
@@ -463,10 +503,12 @@ function App() {
         <Text style={{ bold: true, color: C.text }}>services</Text>
         <ServiceGrid />
 
-        <Box style={{ flexDirection: "row", gap: 1, flexGrow: 1 }}>
-          <DeployPanel />
-          <ActivityLog />
-        </Box>
+        {/* <Box style={{ flexDirection: "row", gap: 1, flexGrow: 1 }}> */}
+        {/*   <DeployPanel /> */}
+        {/*   <ActivityLog /> */}
+        {/* </Box> */}
+
+        <QuickLinks />
       </Box>
 
       <Footer />
