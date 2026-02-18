@@ -21,6 +21,10 @@ export interface GlyphNode {
   layout: LayoutRect;
   focusId: string | null;
   hidden: boolean;
+  /** @internal Cache: terminal columns when resolvedStyle was last computed. */
+  _lastColumns: number;
+  /** @internal Cache: style object reference when resolvedStyle was last computed. */
+  _lastStyleRef: Style | null;
 }
 
 export interface GlyphTextInstance {
@@ -59,6 +63,8 @@ export function createGlyphNode(
     layout: { x: 0, y: 0, width: 0, height: 0, innerX: 0, innerY: 0, innerWidth: 0, innerHeight: 0 },
     focusId: type === "input" ? generateFocusId() : (props.focusable ? generateFocusId() : null),
     hidden: false,
+    _lastColumns: -1,
+    _lastStyleRef: null,
   };
 }
 

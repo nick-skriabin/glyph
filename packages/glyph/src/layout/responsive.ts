@@ -145,7 +145,14 @@ export function resolveNodeStyles(
   rows: number,
 ): void {
   for (const node of nodes) {
-    node.resolvedStyle = resolveStyle(node.style, columns, rows);
+    // Cache: skip re-resolution when the style reference and terminal
+    // columns haven't changed.  Works because commitUpdate() in
+    // hostConfig replaces node.style by reference on every prop change.
+    if (node.style !== node._lastStyleRef || columns !== node._lastColumns) {
+      node.resolvedStyle = resolveStyle(node.style, columns, rows);
+      node._lastStyleRef = node.style;
+      node._lastColumns = columns;
+    }
     resolveNodeStyles(node.children, columns, rows);
   }
 }
