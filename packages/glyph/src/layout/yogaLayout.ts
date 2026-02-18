@@ -196,11 +196,24 @@ function syncYogaStyles(nodes: GlyphNode[]): boolean {
   return anyChanged;
 }
 
+/** Clip rect passed through extractLayout to cull off-screen subtrees. */
+interface LayoutClip { minX: number; minY: number; maxX: number; maxY: number }
+
+/** Mark all Yoga nodes in a subtree as layout-seen (resets hasNewLayout). */
+function markSubtreeLayoutSeen(node: GlyphNode): void {
+  for (const child of node.children) {
+    if (!child.yogaNode) continue;
+    if (child.yogaNode.hasNewLayout()) child.yogaNode.markLayoutSeen();
+    markSubtreeLayoutSeen(child);
+  }
+}
+
 function extractLayout(
   node: GlyphNode,
   parentX: number,
   parentY: number,
   parentMoved: boolean,
+  clip: LayoutClip | null,
 ): void {
   const yn = node.yogaNode!;
   const hasNew = yn.hasNewLayout();
@@ -209,18 +222,41 @@ function extractLayout(
   // The entire subtree is guaranteed unchanged — skip it.
   if (!hasNew && !parentMoved) return;
 
+  if (hasNew) yn.markLayoutSeen();
+
+  // ── Step 1: Determine absolute position (cheap: 1 WASM call or arithmetic) ──
+  let x: number, y: number, width: number, height: number;
+
+  if (hasNew) {
+    const cl = yn.getComputedLayout();
+    x = parentX + cl.left;
+    y = parentY + cl.top;
+    width = cl.width;
+    height = cl.height;
+    node._relLeft = cl.left;
+    node._relTop = cl.top;
+  } else {
+    const prev = node.layout!;
+    x = parentX + node._relLeft;
+    y = parentY + node._relTop;
+    width = prev.width;
+    height = prev.height;
+  }
+
+  // ── Step 2: Clip cull — skip off-screen nodes entirely ──
+  // Avoids expensive padding WASM reads + child recursion for invisible nodes.
+  if (clip &&
+      (y + height <= clip.minY || y >= clip.maxY ||
+       x + width  <= clip.minX || x >= clip.maxX)) {
+    // Off-screen: mark descendants as seen so Yoga resets its flags
+    if (hasNew) markSubtreeLayoutSeen(node);
+    return;
+  }
+
+  // ── Step 3: Full layout extraction ──
   let layoutChanged = false;
 
   if (hasNew) {
-    // ── Yoga recalculated this node: read from WASM ──
-    yn.markLayoutSeen();
-    const cl = yn.getComputedLayout();
-
-    const x = parentX + cl.left;
-    const y = parentY + cl.top;
-    const width = cl.width;
-    const height = cl.height;
-
     const bw = node.resolvedStyle.border && node.resolvedStyle.border !== "none" ? 1 : 0;
     const padTop = yn.getComputedPadding(Edge.Top);
     const padRight = yn.getComputedPadding(Edge.Right);
@@ -231,10 +267,6 @@ function extractLayout(
     const innerY = y + bw + padTop;
     const innerWidth = Math.max(0, width - bw * 2 - padLeft - padRight);
     const innerHeight = Math.max(0, height - bw * 2 - padTop - padBottom);
-
-    // Cache relative offset for the parent-moved fast path next frame
-    node._relLeft = cl.left;
-    node._relTop = cl.top;
 
     const prev = node.layout;
     if (!prev ||
@@ -248,19 +280,14 @@ function extractLayout(
       layoutChanged = true;
     }
   } else {
-    // ── Parent moved but this node's own relative layout is unchanged ──
-    // Just apply a position delta — zero WASM calls.
+    // Parent moved, node's relative layout unchanged — shift by delta.
     const prev = node.layout!;
-    const newX = parentX + node._relLeft;
-    const newY = parentY + node._relTop;
-    const dx = newX - prev.x;
-    const dy = newY - prev.y;
-
+    const dx = x - prev.x;
+    const dy = y - prev.y;
     if (dx !== 0 || dy !== 0) {
       node._prevLayout = prev;
       node.layout = {
-        x: newX,
-        y: newY,
+        x, y,
         width: prev.width,
         height: prev.height,
         innerX: prev.innerX + dx,
@@ -273,9 +300,20 @@ function extractLayout(
     }
   }
 
+  // ── Step 4: Compute child clip and recurse ──
+  let childClip = clip;
+  if (node.resolvedStyle.clip && node.layout) {
+    const l = node.layout;
+    const nc: LayoutClip = { minX: l.x, minY: l.y, maxX: l.x + l.width, maxY: l.y + l.height };
+    childClip = clip
+      ? { minX: Math.max(clip.minX, nc.minX), minY: Math.max(clip.minY, nc.minY),
+          maxX: Math.min(clip.maxX, nc.maxX), maxY: Math.min(clip.maxY, nc.maxY) }
+      : nc;
+  }
+
   for (const child of node.children) {
     if (child.hidden || !child.yogaNode) continue;
-    extractLayout(child, node.layout!.x, node.layout!.y, layoutChanged);
+    extractLayout(child, node.layout!.x, node.layout!.y, layoutChanged, childClip);
   }
 }
 
@@ -334,10 +372,13 @@ export function computeLayout(
   perf.yogaCalculate = performance.now() - t2;
 
   // 4. Extract computed layout into GlyphNodes
+  // Start with no clip — only nodes with clip:true (ScrollView etc.) will
+  // create clip rects for their children.  Root-level overflow must still
+  // get valid layout for tests, scrolling math, etc.
   const t3 = performance.now();
   for (const child of roots) {
     if (child.hidden || !child.yogaNode) continue;
-    extractLayout(child, 0, 0, force);
+    extractLayout(child, 0, 0, force, null);
   }
   perf.extractLayout = performance.now() - t3;
 
