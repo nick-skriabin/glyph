@@ -8,6 +8,7 @@ import { parseKeySequence } from "./runtime/input.js";
 import { Framebuffer } from "./paint/framebuffer.js";
 import { paintTree } from "./paint/painter.js";
 import { diffFramebuffers } from "./paint/diff.js";
+import type { CursorState } from "./paint/diff.js";
 import { computeLayout, createRootYogaNode } from "./layout/yogaLayout.js";
 import { setTerminalPalette, getContrastCursorColor } from "./paint/color.js";
 import {
@@ -71,8 +72,11 @@ export function render(
   const terminal = new Terminal(stdout, stdin);
   terminal.setup();
 
-  // Track whether native cursor is currently visible
+  // Track native cursor state to avoid redundant escape sequences
   let nativeCursorVisible = false;
+  let lastCursorX = -1;
+  let lastCursorY = -1;
+  let lastCursorColor = "";
 
   // Query terminal for actual ANSI palette colors (async, repaint when done)
   terminal.queryPalette().then((palette) => {
@@ -416,7 +420,10 @@ export function render(
       const tLayout0 = performance.now();
       const layoutChanged = computeLayout(container.children, cols, rows, rootYogaNode, fullRepaint);
       if (layoutChanged) {
-        notifyLayoutSubscribers(container.children);
+        // Defer layout notifications to after React's commit phase.
+        // Calling setState inside the commit cycle counts as a nested update
+        // and triggers "Maximum update depth exceeded" at high frame rates.
+        queueMicrotask(() => notifyLayoutSubscribers(container.children));
       }
       const tLayout1 = performance.now();
 
@@ -442,11 +449,33 @@ export function render(
       const tPaint1 = performance.now();
 
       // ── Phase 3: Diff & flush ──
+      // Everything (diff + cursor) is built into one string inside
+      // diffFramebuffers, wrapped in synchronized update (DEC 2026).
+      // Single terminal.write() = atomic screen update, no cursor flicker.
       const tDiff0 = performance.now();
-      const output = diffFramebuffers(prevFb, currentFb, fullRedraw);
-      if (output.length > 0) {
-        terminal.write(output);
-      }
+      const wantCursor = useNativeCursor && !!paintResult.cursorPosition;
+
+      const cursorX = paintResult.cursorPosition?.x ?? -1;
+      const cursorY = paintResult.cursorPosition?.y ?? -1;
+      const cursorColor = wantCursor ? getContrastCursorColor(paintResult.cursorPosition!.bg) : "";
+
+      const cursor: CursorState = {
+        visible: wantCursor,
+        wasVisible: nativeCursorVisible,
+        x: cursorX >= 0 ? cursorX : undefined,
+        y: cursorY >= 0 ? cursorY : undefined,
+        color: cursorColor || undefined,
+        prevX: lastCursorX,
+        prevY: lastCursorY,
+        prevColor: lastCursorColor,
+      };
+
+      const output = diffFramebuffers(prevFb, currentFb, fullRedraw, cursor);
+      terminal.write(output);
+      nativeCursorVisible = wantCursor;
+      lastCursorX = cursorX;
+      lastCursorY = cursorY;
+      lastCursorColor = cursorColor;
       const tDiff1 = performance.now();
 
       // Render images on top of framebuffer
@@ -455,22 +484,6 @@ export function render(
         nativeCursorVisible = false;
       }
       renderPendingImages();
-
-      // Handle native cursor positioning
-      if (useNativeCursor) {
-        if (paintResult.cursorPosition) {
-          const cursorColor = getContrastCursorColor(paintResult.cursorPosition.bg);
-          terminal.setCursorColor(cursorColor);
-          terminal.moveCursor(paintResult.cursorPosition.x, paintResult.cursorPosition.y);
-          if (!nativeCursorVisible) {
-            terminal.showCursor();
-            nativeCursorVisible = true;
-          }
-        } else {
-          terminal.hideCursor();
-          nativeCursorVisible = false;
-        }
-      }
 
       // ── Phase 4: Swap buffers ──
       const tSwap0 = performance.now();
@@ -491,10 +504,14 @@ export function render(
 
     function notifyLayoutSubscribers(nodes: GlyphNode[]): void {
       for (const node of nodes) {
-        const subs = layoutSubscriptions.get(node);
-        if (subs) {
-          for (const handler of subs) {
-            handler(node.layout);
+        // Only notify if this node's layout actually changed this frame.
+        // _paintDirty is set by extractLayout when layout values differ.
+        if (node._paintDirty) {
+          const subs = layoutSubscriptions.get(node);
+          if (subs) {
+            for (const handler of subs) {
+              handler(node.layout);
+            }
           }
         }
         notifyLayoutSubscribers(node.children);

@@ -54,12 +54,45 @@ function buildSGR(cell: Cell): string {
 
 // ── Public API ──────────────────────────────────────────────────
 
+export interface CursorState {
+  /** Whether the cursor should be visible after this frame. */
+  visible: boolean;
+  /** Target x position (0-indexed). Only used when visible=true. */
+  x?: number;
+  /** Target y position (0-indexed). Only used when visible=true. */
+  y?: number;
+  /** OSC 12 color string for cursor. */
+  color?: string;
+  /** Whether cursor was visible before this frame. */
+  wasVisible: boolean;
+  /** Previous x (to skip redundant repositioning). */
+  prevX: number;
+  /** Previous y (to skip redundant repositioning). */
+  prevY: number;
+  /** Previous color (to skip redundant OSC 12). */
+  prevColor: string;
+}
+
 export function diffFramebuffers(
   prev: Framebuffer,
   next: Framebuffer,
   fullRedraw: boolean,
+  cursor?: CursorState,
 ): string {
   off = 0; // Reset write cursor
+
+  // Begin synchronized update (DEC mode 2026).
+  // Terminal buffers all output and paints atomically on end marker.
+  // Supported by Ghostty, Kitty, WezTerm, iTerm2, foot, Contour, etc.
+  // Unsupported terminals silently ignore these sequences.
+  writeAscii(`${CSI}?2026h`);
+
+  // Always hide cursor at the start of the sync block.
+  // This ensures the cursor isn't visible at intermediate positions
+  // during cell writes. We'll show it at the final position at the end.
+  if (cursor?.wasVisible) {
+    writeAscii(`${CSI}?25l`);
+  }
 
   // cursorX/cursorY track the terminal's ACTUAL cursor position,
   // accounting for wide characters that advance the cursor by 2.
@@ -132,6 +165,26 @@ export function diffFramebuffers(
     // for anything outside our paint cycle (e.g. images, cursor input).
     writeAscii(`${CSI}?7h`);
   }
+
+  // ── Cursor handling (end of sync block) ──
+  if (cursor) {
+    if (cursor.visible && cursor.x !== undefined && cursor.y !== undefined) {
+      // Set color only if changed
+      if (cursor.color && cursor.color !== cursor.prevColor) {
+        writeAscii(`\x1b]12;${cursor.color}\x07`);
+      }
+      // Position cursor at target
+      writeAscii(`${CSI}${cursor.y + 1};${cursor.x + 1}H`);
+      // Show cursor (was hidden at start of sync block)
+      writeAscii(`${CSI}?25h`);
+    } else if (!cursor.visible && cursor.wasVisible) {
+      // Cursor was hidden at start, keep it hidden (no-op, already hidden)
+    }
+    // If !wasVisible && !visible: cursor stays hidden (no-op)
+  }
+
+  // End synchronized update — terminal paints everything at once.
+  writeAscii(`${CSI}?2026l`);
 
   // Return a string — no API change.  All escape sequences are pure
   // ASCII so the mixed latin1/utf8 buffer is valid utf8 throughout.

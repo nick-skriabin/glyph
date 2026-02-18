@@ -77,13 +77,19 @@ export function paintTree(
     // (dirty = node._paintDirty OR an ancestor was dirty)
     if (!full && !entry.dirty) continue;
 
+    // Compute inherited style ONCE per node — reused by pre-clear,
+    // paintNode, paintText, and paintInput.
+    const inherited = getInheritedTextStyle(node);
+
     // On incremental frames, pre-clear the node's area so stale pixels
     // from removed/moved children or shorter text are erased.
-    // Nodes with their own bg will be re-filled by paintNode anyway,
-    // so only clear nodes without bg (their backdrop is the parent's bg).
-    if (!full && !node.resolvedStyle.bg) {
+    //
+    // Only pre-clear SELF-dirty nodes: if the node is dirty only because
+    // an ancestor propagated its dirty flag, the ancestor's pre-clear
+    // already erased this area.  Also skip nodes with their own bg —
+    // paintNode will fill the area anyway.
+    if (!full && node._paintDirty && !node.resolvedStyle.bg) {
       const { x, y, width, height } = node.layout;
-      const inherited = getInheritedTextStyle(node);
       for (let row = y; row < y + height; row++) {
         for (let col = x; col < x + width; col++) {
           if (isInClip(col, row, entry.clip)) {
@@ -93,7 +99,7 @@ export function paintTree(
       }
     }
 
-    const nodeResult = paintNode(node, fb, entry.clip, options);
+    const nodeResult = paintNode(node, fb, entry.clip, options, inherited);
     node._paintDirty = false;
 
     // Capture cursor position from the focused input
@@ -113,6 +119,21 @@ function collectPaintEntries(
   ancestorDirty: boolean,
 ): void {
   if (node.hidden) return;
+
+  // Early-out: skip nodes (and all their descendants) that are entirely
+  // outside the clip rect.  This avoids iterating hundreds of off-screen
+  // ScrollView children that would result in no-op writes.
+  const { x, y, width, height } = node.layout;
+  if (
+    width > 0 && height > 0 &&
+    parentClip.width > 0 && parentClip.height > 0 &&
+    (x >= parentClip.x + parentClip.width ||
+     x + width <= parentClip.x ||
+     y >= parentClip.y + parentClip.height ||
+     y + height <= parentClip.y)
+  ) {
+    return;
+  }
 
   const zIndex = node.resolvedStyle.zIndex ?? parentZ;
   // A node is "dirty" if it or any ancestor is dirty
@@ -163,11 +184,14 @@ function isInClip(x: number, y: number, clip: ClipRect): boolean {
   return x >= clip.x && x < clip.x + clip.width && y >= clip.y && y < clip.y + clip.height;
 }
 
+type InheritedStyle = ReturnType<typeof getInheritedTextStyle>;
+
 function paintNode(
   node: GlyphNode,
   fb: Framebuffer,
   clip: ClipRect,
   options: PaintOptions = {},
+  inherited: InheritedStyle = getInheritedTextStyle(node),
 ): PaintResult | undefined {
   const { x, y, width, height, innerX, innerY, innerWidth, innerHeight } = node.layout;
   const style = node.resolvedStyle;
@@ -175,7 +199,6 @@ function paintNode(
   if (width <= 0 || height <= 0) return;
 
   // Resolve inherited bg so borders and fills don't erase a parent's background
-  const inherited = getInheritedTextStyle(node);
   const effectiveBg = inherited.bg;
 
   // 1. Background fill
@@ -235,9 +258,9 @@ function paintNode(
 
   // 4. Text content
   if (node.type === "text") {
-    paintText(node, fb, clip);
+    paintText(node, fb, clip, inherited);
   } else if (node.type === "input") {
-    return paintInput(node, fb, clip, options);
+    return paintInput(node, fb, clip, options, inherited);
   }
 
   return undefined;
@@ -371,9 +394,8 @@ function paintFromCache(
   }
 }
 
-function paintText(node: GlyphNode, fb: Framebuffer, clip: ClipRect): void {
+function paintText(node: GlyphNode, fb: Framebuffer, clip: ClipRect, inherited: InheritedStyle): void {
   const { innerX, innerY, innerWidth, innerHeight } = node.layout;
-  const inherited = getInheritedTextStyle(node);
 
   // ── Cache check ──
   // Skip cache for nodes with GlyphNode children (nested Text) — their
@@ -527,6 +549,7 @@ function paintInput(
   fb: Framebuffer,
   clip: ClipRect,
   options: PaintOptions = {},
+  inherited: InheritedStyle = getInheritedTextStyle(node),
 ): PaintResult | undefined {
   const { cursorInfo, useNativeCursor } = options;
   const { innerX, innerY, innerWidth, innerHeight } = node.layout;
@@ -537,7 +560,6 @@ function paintInput(
   const displayText = value || placeholder;
   const isPlaceholder = !value && !!placeholder;
   const multiline: boolean = node.props.multiline ?? false;
-  const inherited = getInheritedTextStyle(node);
 
   const autoFg = autoContrastFg(inherited.color, inherited.bg);
   // For placeholder: use a dimmed contrast color based on background

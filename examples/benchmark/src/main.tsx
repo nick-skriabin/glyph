@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import type { InputHandle } from "@semos-labs/glyph";
 import {
   render,
   Box,
@@ -339,7 +340,7 @@ function ProcessTable({
   }, [processes, filter]);
 
   return (
-    <Box style={{ flexDirection: "column", flexGrow: 1 }}>
+    <Box style={{ flexDirection: "column", flexGrow: 1, flexShrink: 1, clip: true }}>
       {/* Header */}
       <Box style={{ flexDirection: "row", paddingX: 1, bg: "blackBright" }}>
         <Text style={{ width: 7, bold: true }}>PID</Text>
@@ -352,7 +353,7 @@ function ProcessTable({
 
       {/* Scrollable rows */}
       <ScrollView
-        style={{ flexGrow: 1, flexDirection: "column" }}
+        style={{ flexGrow: 1, flexShrink: 1, flexDirection: "column" }}
         disableKeyboard
       >
         {filtered.map((p) => {
@@ -385,15 +386,18 @@ function ProcessTable({
 }
 
 function ActivityLog({ logs }: { logs: LogEntry[] }) {
+  const visibleLines = 20; // approximate visible rows
   return (
-    <Box style={{ flexDirection: "column", height: 8 }}>
-      <Box style={{ paddingX: 1 }}>
-        <Text style={{ bold: true, dim: true }}>Activity</Text>
+    <Box style={{ flexDirection: "column", flexGrow: 1 }}>
+      <Box style={{ paddingX: 1, bg: "blackBright" }}>
+        <Text style={{ bold: true }}>Activity</Text>
+        <Spacer />
+        <Text style={{ dim: true }}>{logs.length} entries</Text>
       </Box>
       <ScrollView
         style={{ flexGrow: 1, flexDirection: "column" }}
         disableKeyboard
-        scrollOffset={Math.max(0, logs.length - 6)}
+        scrollOffset={Math.max(0, logs.length - visibleLines)}
       >
         {logs.map((log) => {
           const levelColor =
@@ -441,36 +445,52 @@ function App() {
   const [filter, setFilter] = useState("");
   const [paused, setPaused] = useState(false);
   const logIdRef = useRef(0);
+  const inputRef = useRef<InputHandle>(null);
 
   // Frame stats
   const frameStats = useFrameStats(lastFrameTime, frameTiming, tick);
 
-  // Main tick loop
+  // Main tick loop — uses recursive setTimeout so the next tick
+  // only schedules after React finishes processing the current one.
+  // setInterval can stack calls faster than React can flush them,
+  // hitting the "Maximum update depth" limit.
+  const tickRef = useRef(tick);
+  tickRef.current = tick;
+
   useEffect(() => {
     if (paused) return;
-    const interval = setInterval(() => {
+    let cancelled = false;
+    const delay = Math.floor(1000 / tickRate);
+
+    function doTick() {
+      if (cancelled) return;
+      const currentTick = tickRef.current;
+
+      // Build new log entries
+      const count = 1 + Math.floor(Math.random() * 3);
+      const newLogs: LogEntry[] = [];
+      for (let i = 0; i < count; i++) {
+        const id = logIdRef.current++;
+        const now = new Date();
+        const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+        const level = Math.random() > 0.92 ? "error" : Math.random() > 0.85 ? "warn" : "info";
+        newLogs.push({ id, time, message: randomLogMessage(currentTick), level: level as LogEntry["level"] });
+      }
+
       setTick((t) => t + 1);
       setProcesses((p) => tickProcesses(p));
-
-      // Add 1-3 log entries per tick
-      const count = 1 + Math.floor(Math.random() * 3);
       setLogs((prev) => {
-        const next = [...prev];
-        for (let i = 0; i < count; i++) {
-          const id = logIdRef.current++;
-          const now = new Date();
-          const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
-          const level = Math.random() > 0.92 ? "error" : Math.random() > 0.85 ? "warn" : "info";
-          next.push({ id, time, message: randomLogMessage(tick), level: level as LogEntry["level"] });
-        }
-        // Trim old entries
-        if (next.length > LOG_MAX) return next.slice(-LOG_MAX);
-        return next;
+        const next = [...prev, ...newLogs];
+        return next.length > LOG_MAX ? next.slice(-LOG_MAX) : next;
       });
-    }, Math.floor(1000 / tickRate));
 
-    return () => clearInterval(interval);
-  }, [tickRate, paused, tick]);
+      // Schedule next tick AFTER this one is dispatched
+      setTimeout(doTick, delay);
+    }
+
+    const timer = setTimeout(doTick, delay);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [tickRate, paused]);
 
   // Keybinds
   useInput((key) => {
@@ -509,26 +529,26 @@ function App() {
       {/* Divider */}
       <Box style={{ height: 1, bg: "blackBright" }} />
 
-      {/* Main content area */}
-      <Box style={{ flexDirection: "column", flexGrow: 1 }}>
-        {/* Process table */}
+      {/* Main content: processes + logs side by side */}
+      <Box style={{ flexDirection: "row", flexGrow: 1, flexShrink: 1, clip: true }}>
+        {/* Process table (left) */}
         <ProcessTable processes={processes} filter={filter} />
+
+        {/* Vertical divider */}
+        <Box style={{ width: 1, bg: "blackBright" }} />
+
+        {/* Activity log (right) */}
+        <Box style={{ flexDirection: "column", width: 48, flexShrink: 0 }}>
+          <ActivityLog logs={logs} />
+        </Box>
       </Box>
 
-      {/* Divider */}
-      <Box style={{ height: 1, bg: "blackBright" }} />
-
-      {/* Activity log */}
-      <ActivityLog logs={logs} />
-
-      {/* Divider */}
-      <Box style={{ height: 1, bg: "blackBright" }} />
-
       {/* Bottom bar */}
-      <Box style={{ flexDirection: "row", paddingX: 1, gap: 2 }}>
+      <Box style={{ flexDirection: "row", paddingX: 1, gap: 2, flexShrink: 0 }}>
         <Box style={{ flexDirection: "row", gap: 1 }}>
           <Text style={{ dim: true }}>search:</Text>
           <Input
+            ref={inputRef}
             value={filter}
             onChange={setFilter}
             placeholder="filter processes..."
@@ -553,7 +573,7 @@ function App() {
       {/* Global keybinds */}
       <Keybind keypress="q" onPress={() => exit()} />
       <Keybind keypress="space" onPress={() => setPaused((p) => !p)} />
-      <Keybind keypress="/" onPress={() => { /* Input will capture focus */ }} />
+      <Keybind keypress="/" onPress={() => inputRef.current?.focus()} />
     </Box>
   );
 }
