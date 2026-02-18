@@ -10,7 +10,7 @@ import Yoga, {
   Overflow,
 } from "yoga-layout";
 import type { Node as YogaNode } from "yoga-layout";
-import type { GlyphNode, GlyphContainer } from "../reconciler/nodes.js";
+import type { GlyphNode } from "../reconciler/nodes.js";
 import type { ResolvedStyle, DimensionValue } from "../types/index.js";
 import { measureText } from "./textMeasure.js";
 import { resolveNodeStyles } from "./responsive.js";
@@ -34,6 +34,8 @@ const ALIGN_MAP: Record<string, Align> = {
   "flex-end": Align.FlexEnd,
   stretch: Align.Stretch,
 };
+
+// ── Style helpers ───────────────────────────────────────────────
 
 function setDimension(
   node: YogaNode,
@@ -129,38 +131,11 @@ function applyStyleToYogaNode(yogaNode: YogaNode, style: ResolvedStyle, nodeType
   }
 }
 
-function buildYogaTree(node: GlyphNode): void {
-  const yogaNode = Yoga.Node.create();
-  node.yogaNode = yogaNode;
-
-  applyStyleToYogaNode(yogaNode, node.resolvedStyle, node.type);
-
-  if (node.type === "text" || node.type === "input") {
-    yogaNode.setMeasureFunc((width, widthMode, height, heightMode) => {
-      let text: string;
-      if (node.type === "input") {
-        text = node.props.value ?? node.props.defaultValue ?? node.props.placeholder ?? "";
-        if (text.length === 0) text = " ";
-      } else {
-        text = collectAllText(node);
-      }
-      return measureText(
-        text,
-        width,
-        widthMode,
-        node.resolvedStyle.wrap ?? "wrap",
-      );
-    });
-  } else {
-    // Build children
-    for (let i = 0; i < node.children.length; i++) {
-      const child = node.children[i]!;
-      if (child.hidden) continue;
-      buildYogaTree(child);
-      yogaNode.insertChild(child.yogaNode!, yogaNode.getChildCount());
-    }
-  }
-}
+// ── Tree sync ───────────────────────────────────────────────────
+// Each frame we rebuild the Yoga tree STRUCTURE from the GlyphNode
+// tree (the single source of truth).  We reuse the persistent Yoga
+// node objects — only the parent-child wiring is rebuilt.  Styles
+// are applied only when they've changed (using _lastYogaStyle cache).
 
 function collectAllText(node: GlyphNode): string {
   if (node.text != null) return node.text;
@@ -173,6 +148,64 @@ function collectAllText(node: GlyphNode): string {
     if (typeof node.props.children === "number") return String(node.props.children);
   }
   return result;
+}
+
+/**
+ * Rebuild the Yoga tree structure from the GlyphNode tree and sync
+ * styles that have changed.
+ *
+ * For each Yoga parent:
+ * 1. Remove all existing Yoga children (they may have moved/been deleted).
+ * 2. Re-insert visible children in the correct order.
+ * 3. If the node's resolvedStyle changed, re-apply to the Yoga node.
+ * 4. Install measure functions once for text/input leaf nodes.
+ * 5. Recurse into children.
+ */
+function syncYogaTree(nodes: GlyphNode[], yogaParent: YogaNode): void {
+  // 1. Detach all existing Yoga children from this parent
+  while (yogaParent.getChildCount() > 0) {
+    yogaParent.removeChild(yogaParent.getChild(0));
+  }
+
+  for (const node of nodes) {
+    if (node.hidden || !node.yogaNode) continue;
+
+    // 2. Detach from previous Yoga parent (if any) before re-inserting
+    const prevParent = node.yogaNode.getParent();
+    if (prevParent) prevParent.removeChild(node.yogaNode);
+    yogaParent.insertChild(node.yogaNode, yogaParent.getChildCount());
+
+    // 3. Re-apply styles only when changed
+    if (node.resolvedStyle !== node._lastYogaStyle) {
+      applyStyleToYogaNode(node.yogaNode, node.resolvedStyle, node.type);
+      node._lastYogaStyle = node.resolvedStyle;
+    }
+
+    // 4. Install measure function once for text/input leaf nodes
+    if (!node._hasMeasureFunc && (node.type === "text" || node.type === "input")) {
+      node.yogaNode.setMeasureFunc((width, widthMode, _height, _heightMode) => {
+        let text: string;
+        if (node.type === "input") {
+          text = node.props.value ?? node.props.defaultValue ?? node.props.placeholder ?? "";
+          if (text.length === 0) text = " ";
+        } else {
+          text = collectAllText(node);
+        }
+        return measureText(
+          text,
+          width,
+          widthMode,
+          node.resolvedStyle.wrap ?? "wrap",
+        );
+      });
+      node._hasMeasureFunc = true;
+    }
+
+    // 5. Recurse into children (text/input are leaves — no Yoga children)
+    if (node.type !== "text" && node.type !== "input") {
+      syncYogaTree(node.children, node.yogaNode);
+    }
+  }
 }
 
 function extractLayout(node: GlyphNode, parentX: number, parentY: number): void {
@@ -197,8 +230,8 @@ function extractLayout(node: GlyphNode, parentX: number, parentY: number): void 
 
   // Only create new layout object if values actually changed (prevents infinite re-renders)
   const prev = node.layout;
-  if (!prev || 
-      prev.x !== x || prev.y !== y || 
+  if (!prev ||
+      prev.x !== x || prev.y !== y ||
       prev.width !== width || prev.height !== height ||
       prev.innerX !== innerX || prev.innerY !== innerY ||
       prev.innerWidth !== innerWidth || prev.innerHeight !== innerHeight) {
@@ -211,53 +244,43 @@ function extractLayout(node: GlyphNode, parentX: number, parentY: number): void 
   }
 }
 
-function freeYogaTree(node: GlyphNode): void {
-  for (const child of node.children) {
-    if (child.yogaNode) freeYogaTree(child);
-  }
-  if (node.yogaNode) {
-    node.yogaNode.freeRecursive();
-    node.yogaNode = null;
-  }
+// ── Public API ──────────────────────────────────────────────────
+
+/** Create the persistent root Yoga node for the terminal screen. */
+export function createRootYogaNode(): YogaNode {
+  const node = Yoga.Node.create();
+  node.setFlexDirection(FlexDirection.Column);
+  return node;
 }
 
+/**
+ * Compute layout for the entire tree using persistent Yoga nodes.
+ *
+ * @param roots - Top-level GlyphNodes.
+ * @param screenWidth - Terminal width in columns.
+ * @param screenHeight - Terminal height in rows.
+ * @param rootYoga - Persistent root Yoga node (screen container).
+ */
 export function computeLayout(
   roots: GlyphNode[],
   screenWidth: number,
   screenHeight: number,
+  rootYoga: YogaNode,
 ): void {
-  // Resolve responsive style values for the current terminal dimensions
+  // 1. Resolve responsive style values for the current terminal dimensions
   resolveNodeStyles(roots, screenWidth, screenHeight);
 
-  // Create a virtual root Yoga node for the screen
-  const rootYoga = Yoga.Node.create();
+  // 2. Rebuild Yoga tree structure + sync changed styles
+  syncYogaTree(roots, rootYoga);
+
+  // 3. Update root dimensions and calculate layout
   rootYoga.setWidth(screenWidth);
   rootYoga.setHeight(screenHeight);
-  rootYoga.setFlexDirection(FlexDirection.Column);
-
-  for (const child of roots) {
-    if (child.hidden) continue;
-    buildYogaTree(child);
-    rootYoga.insertChild(child.yogaNode!, rootYoga.getChildCount());
-  }
-
   rootYoga.calculateLayout(screenWidth, screenHeight, Direction.LTR);
 
+  // 4. Extract computed layout into GlyphNodes
   for (const child of roots) {
     if (child.hidden || !child.yogaNode) continue;
     extractLayout(child, 0, 0);
-  }
-
-  // Free yoga tree
-  rootYoga.freeRecursive();
-
-  // Clear references (they were freed)
-  clearYogaRefs(roots);
-}
-
-function clearYogaRefs(nodes: GlyphNode[]): void {
-  for (const node of nodes) {
-    node.yogaNode = null;
-    clearYogaRefs(node.children);
   }
 }

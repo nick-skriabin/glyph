@@ -8,7 +8,7 @@ import { parseKeySequence } from "./runtime/input.js";
 import { Framebuffer } from "./paint/framebuffer.js";
 import { paintTree } from "./paint/painter.js";
 import { diffFramebuffers } from "./paint/diff.js";
-import { computeLayout } from "./layout/yogaLayout.js";
+import { computeLayout, createRootYogaNode } from "./layout/yogaLayout.js";
 import { setTerminalPalette, getContrastCursorColor } from "./paint/color.js";
 import {
   InputContext,
@@ -374,12 +374,14 @@ export function render(
     };
 
     // ---- Container ----
+    const rootYogaNode = createRootYogaNode();
     const container: GlyphContainer = {
       type: "root",
       children: [],
       onCommit() {
         scheduleRender();
       },
+      yogaNode: rootYogaNode,
     };
 
     // ---- Render scheduling ----
@@ -407,7 +409,7 @@ export function render(
 
       // ── Phase 1: Layout ──
       const tLayout0 = performance.now();
-      computeLayout(container.children, cols, rows);
+      computeLayout(container.children, cols, rows, rootYogaNode);
       notifyLayoutSubscribers(container.children);
       const tLayout1 = performance.now();
 
@@ -643,6 +645,9 @@ export function render(
           terminal.write(clearSeq);
         }
         
+        // Free persistent Yoga root
+        rootYogaNode.freeRecursive();
+
         terminal.cleanup();
       },
       exit(code?: number) {

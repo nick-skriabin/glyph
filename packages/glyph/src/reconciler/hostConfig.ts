@@ -1,3 +1,4 @@
+import { Display } from "yoga-layout";
 import type {
   GlyphNode,
   GlyphTextInstance,
@@ -13,6 +14,7 @@ import {
   removeTextChild as glyphRemoveTextChild,
   insertBefore as glyphInsertBefore,
   insertTextBefore as glyphInsertTextBefore,
+  freeYogaNode,
 } from "./nodes.js";
 import type { Style } from "../types/index.js";
 
@@ -49,7 +51,10 @@ export const hostConfig = {
   afterActiveInstanceBlur: () => {},
   prepareScopeUpdate: () => {},
   getInstanceFromScope: () => null,
-  detachDeletedInstance: () => {},
+  detachDeletedInstance(instance: GlyphNode | GlyphTextInstance): void {
+    if (instance.type === "raw-text") return;
+    freeYogaNode(instance as GlyphNode);
+  },
 
   requestPostPaintCallback: (_callback: any) => {},
 
@@ -252,6 +257,10 @@ export const hostConfig = {
       textInstance.parent.text = textInstance.parent.rawTextChildren
         .map((t) => t.text)
         .join("");
+      // Mark parent's Yoga node dirty for re-measurement
+      if (textInstance.parent.yogaNode) {
+        textInstance.parent.yogaNode.markDirty();
+      }
     }
   },
 
@@ -269,10 +278,17 @@ export const hostConfig = {
     if (newProps.focusable && !instance.focusId) {
       instance.focusId = `focus-${Math.random().toString(36).slice(2, 9)}`;
     }
+    // Mark Yoga dirty when input content changes (needs re-measurement)
+    if (instance.yogaNode && instance.type === "input") {
+      if (_oldProps.value !== newProps.value || _oldProps.placeholder !== newProps.placeholder) {
+        instance.yogaNode.markDirty();
+      }
+    }
   },
 
   hideInstance(instance: GlyphNode): void {
     instance.hidden = true;
+    if (instance.yogaNode) instance.yogaNode.setDisplay(Display.None);
   },
 
   hideTextInstance(textInstance: GlyphTextInstance): void {
@@ -281,6 +297,7 @@ export const hostConfig = {
 
   unhideInstance(instance: GlyphNode, _props: Props): void {
     instance.hidden = false;
+    if (instance.yogaNode) instance.yogaNode.setDisplay(Display.Flex);
   },
 
   unhideTextInstance(textInstance: GlyphTextInstance, text: string): void {

@@ -1,3 +1,4 @@
+import Yoga from "yoga-layout";
 import type { Node as YogaNode } from "yoga-layout";
 import type { Style, ResolvedStyle, LayoutRect, Color } from "../types/index.js";
 
@@ -25,6 +26,10 @@ export interface GlyphNode {
   _lastColumns: number;
   /** @internal Cache: style object reference when resolvedStyle was last computed. */
   _lastStyleRef: Style | null;
+  /** @internal Cache: resolvedStyle reference when Yoga styles were last applied. */
+  _lastYogaStyle: ResolvedStyle | null;
+  /** @internal Whether a Yoga measure function has been installed on this node. */
+  _hasMeasureFunc: boolean;
 }
 
 export interface GlyphTextInstance {
@@ -37,6 +42,7 @@ export interface GlyphContainer {
   type: "root";
   children: GlyphNode[];
   onCommit: () => void;
+  yogaNode?: YogaNode;
 }
 
 let nextFocusId = 0;
@@ -58,13 +64,15 @@ export function createGlyphNode(
     rawTextChildren: [],
     allChildren: [],
     parent: null,
-    yogaNode: null,
+    yogaNode: Yoga.Node.create(),
     text: null,
     layout: { x: 0, y: 0, width: 0, height: 0, innerX: 0, innerY: 0, innerWidth: 0, innerHeight: 0 },
     focusId: type === "input" ? generateFocusId() : (props.focusable ? generateFocusId() : null),
     hidden: false,
     _lastColumns: -1,
     _lastStyleRef: null,
+    _lastYogaStyle: null,
+    _hasMeasureFunc: false,
   };
 }
 
@@ -161,6 +169,35 @@ export function insertTextBefore(
     parent.allChildren.push(child);
   }
   parent.text = parent.rawTextChildren.map((t) => t.text).join("");
+}
+
+/** Detach a Yoga node from its Yoga parent (if any). */
+function yogaDetach(node: GlyphNode): void {
+  if (!node.yogaNode) return;
+  const parent = node.yogaNode.getParent();
+  if (parent) parent.removeChild(node.yogaNode);
+}
+
+/**
+ * Free a GlyphNode's Yoga node when it is permanently deleted.
+ *
+ * React calls `detachDeletedInstance` top-down (parent before children).
+ * We detach all Yoga children first so their `getParent()` returns null
+ * when they are later freed — avoids a use-after-free on Yoga's WASM heap.
+ */
+export function freeYogaNode(node: GlyphNode): void {
+  if (!node.yogaNode) return;
+
+  yogaDetach(node);
+
+  // Detach Yoga children before freeing this node
+  const yn = node.yogaNode;
+  while (yn.getChildCount() > 0) {
+    yn.removeChild(yn.getChild(0));
+  }
+
+  yn.free();
+  node.yogaNode = null;
 }
 
 export function getInheritedTextStyle(node: GlyphNode): {
