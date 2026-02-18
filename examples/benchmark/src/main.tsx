@@ -580,4 +580,4 @@ function App() {
 
 // ── Entry ───────────────────────────────────────────────────────
 
-render(<App />, { debug: false });
+render(<App />, { debug: true });

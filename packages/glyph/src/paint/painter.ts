@@ -167,7 +167,19 @@ function collectPaintEntries(
 
   const zIndex = node.resolvedStyle.zIndex ?? parentZ;
   // A node is "dirty" if it or any ancestor is dirty
-  const dirty = node._paintDirty || ancestorDirty;
+  let dirty = node._paintDirty || ancestorDirty;
+
+  // Clip containers (e.g. ScrollView) must repaint their viewport fill
+  // whenever children scroll in/out — otherwise old content ghosts remain.
+  // Check if any direct child is dirty and propagate up to the clip parent.
+  if (!dirty && node.resolvedStyle.clip) {
+    for (const child of node.children) {
+      if (child._paintDirty) {
+        dirty = true;
+        break;
+      }
+    }
+  }
 
   // Clip rect for THIS node's own painting (bg, border, text).
   // Uses parentClip so the node can paint within its parent's bounds.

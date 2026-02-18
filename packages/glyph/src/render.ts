@@ -513,14 +513,15 @@ export function render(
 
     function notifyLayoutSubscribers(nodes: GlyphNode[]): void {
       for (const node of nodes) {
-        // Only notify if this node's layout actually changed this frame.
-        // _paintDirty is set by extractLayout when layout values differ.
-        if (node._paintDirty) {
-          const subs = layoutSubscriptions.get(node);
-          if (subs) {
-            for (const handler of subs) {
-              handler(node.layout);
-            }
+        // Notify all subscribers unconditionally.  React's useState
+        // bail-out prevents re-renders when the layout object reference
+        // hasn't changed (stable frames keep the same node.layout ref).
+        // We can NOT filter by _paintDirty here because the paint phase
+        // clears that flag before this deferred microtask runs.
+        const subs = layoutSubscriptions.get(node);
+        if (subs) {
+          for (const handler of subs) {
+            handler(node.layout);
           }
         }
         notifyLayoutSubscribers(node.children);

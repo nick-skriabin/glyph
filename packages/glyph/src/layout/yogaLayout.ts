@@ -65,7 +65,51 @@ function setPosition(
   }
 }
 
+function resetYogaNode(yogaNode: YogaNode): void {
+  // Reset all layout properties to Yoga defaults so that stale values
+  // from a previously applied style don't leak when React reuses a host
+  // node via commitUpdate (e.g. switching between detail/list views).
+  yogaNode.setWidth("auto" as any);
+  yogaNode.setHeight("auto" as any);
+  yogaNode.setMinWidth(NaN);    // NaN = "unset" in Yoga
+  yogaNode.setMinHeight(NaN);
+  yogaNode.setMaxWidth(NaN);
+  yogaNode.setMaxHeight(NaN);
+
+  yogaNode.setPadding(Edge.All, 0);
+  yogaNode.setPadding(Edge.Horizontal, NaN);
+  yogaNode.setPadding(Edge.Vertical, NaN);
+  yogaNode.setPadding(Edge.Top, NaN);
+  yogaNode.setPadding(Edge.Right, NaN);
+  yogaNode.setPadding(Edge.Bottom, NaN);
+  yogaNode.setPadding(Edge.Left, NaN);
+
+  yogaNode.setBorder(Edge.All, 0);
+
+  yogaNode.setFlexDirection(FlexDirection.Column);
+  yogaNode.setFlexWrap(Wrap.NoWrap);
+  yogaNode.setJustifyContent(Justify.FlexStart);
+  yogaNode.setAlignItems(Align.Stretch);
+  yogaNode.setFlexGrow(0);
+  yogaNode.setFlexShrink(0);
+
+  yogaNode.setGap(Gutter.All, 0);
+
+  yogaNode.setPositionType(PositionType.Relative);
+  yogaNode.setPosition(Edge.Top, NaN);
+  yogaNode.setPosition(Edge.Right, NaN);
+  yogaNode.setPosition(Edge.Bottom, NaN);
+  yogaNode.setPosition(Edge.Left, NaN);
+
+  yogaNode.setOverflow(Overflow.Visible);
+}
+
 function applyStyleToYogaNode(yogaNode: YogaNode, style: ResolvedStyle, nodeType: string): void {
+  // Reset all properties first to clear stale values from previous styles.
+  // This is critical when React reuses a host node (commitUpdate) — e.g.
+  // a Box that had flexGrow:1 + padding:1 becomes a title row with neither.
+  resetYogaNode(yogaNode);
+
   // Dimensions
   setDimension(yogaNode, (v) => yogaNode.setWidth(v as any), style.width);
   setDimension(yogaNode, (v) => yogaNode.setHeight(v as any), style.height);
@@ -245,9 +289,27 @@ function extractLayout(
 
   // ── Step 2: Clip cull — skip off-screen nodes entirely ──
   // Avoids expensive padding WASM reads + child recursion for invisible nodes.
+  // IMPORTANT: we still update node.layout to the correct off-screen position
+  // so that collectPaintEntries correctly culls the node (stale on-screen
+  // positions would cause ghost painting).
   if (clip &&
       (y + height <= clip.minY || y >= clip.maxY ||
        x + width  <= clip.minX || x >= clip.maxX)) {
+    // Update position so the paint system sees the correct off-screen coords
+    const prev = node.layout;
+    if (prev && (prev.x !== x || prev.y !== y || prev.width !== width || prev.height !== height)) {
+      const dx = x - prev.x;
+      const dy = y - prev.y;
+      node._prevLayout = prev;
+      node.layout = {
+        x, y, width, height,
+        innerX: prev.innerX + dx,
+        innerY: prev.innerY + dy,
+        innerWidth: prev.innerWidth,
+        innerHeight: prev.innerHeight,
+      };
+      node._paintDirty = true;
+    }
     // Off-screen: mark descendants as seen so Yoga resets its flags
     if (hasNew) markSubtreeLayoutSeen(node);
     return;
@@ -305,10 +367,16 @@ function extractLayout(
   if (node.resolvedStyle.clip && node.layout) {
     const l = node.layout;
     const nc: LayoutClip = { minX: l.x, minY: l.y, maxX: l.x + l.width, maxY: l.y + l.height };
-    childClip = clip
-      ? { minX: Math.max(clip.minX, nc.minX), minY: Math.max(clip.minY, nc.minY),
-          maxX: Math.min(clip.maxX, nc.maxX), maxY: Math.min(clip.maxY, nc.maxY) }
-      : nc;
+    // Only apply clip when the rect has positive area.  A degenerate
+    // (0-area) clip culls *everything* and breaks layout feedback loops
+    // — e.g. ScrollView's useLayout bootstrap where the viewport starts
+    // at 0 height and needs child layout to size itself.
+    if (nc.maxX > nc.minX && nc.maxY > nc.minY) {
+      childClip = clip
+        ? { minX: Math.max(clip.minX, nc.minX), minY: Math.max(clip.minY, nc.minY),
+            maxX: Math.min(clip.maxX, nc.maxX), maxY: Math.min(clip.maxY, nc.maxY) }
+        : nc;
+    }
   }
 
   for (const child of node.children) {
