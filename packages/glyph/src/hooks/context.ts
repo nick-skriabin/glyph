@@ -57,6 +57,22 @@ export interface LayoutContextValue {
 
 export const LayoutContext = createContext<LayoutContextValue | null>(null);
 
+// ---- Frame Timing ----
+
+/** Per-phase timing breakdown of a single `performRender` call (ms). */
+export interface FrameTiming {
+  /** Total frame time (layout + paint + diff + swap). */
+  total: number;
+  /** Responsive style resolution + Yoga layout. */
+  layout: number;
+  /** Rasterise GlyphNode tree into the framebuffer. */
+  paint: number;
+  /** Character-level diff + ANSI escape generation. */
+  diff: number;
+  /** Copy currentFb → prevFb. */
+  swap: number;
+}
+
 // ---- App Context ----
 export interface AppContextValue {
   registerNode(node: GlyphNode): void;
@@ -69,6 +85,10 @@ export interface AppContextValue {
   rows: number;
   /** Subscribe to terminal resize events. Returns an unsubscribe function. */
   onResize(handler: () => void): () => void;
+  /** Duration of the last `performRender` call in milliseconds. */
+  lastFrameTime: number;
+  /** Per-phase breakdown of the last frame's render time. */
+  frameTiming: FrameTiming;
 }
 
 export const AppContext = createContext<AppContextValue | null>(null);

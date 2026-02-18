@@ -1,5 +1,6 @@
 import { useContext, useCallback, useSyncExternalStore } from "react";
 import { AppContext } from "./context.js";
+import type { FrameTiming } from "./context.js";
 
 /**
  * Return type of {@link useApp}.
@@ -13,6 +14,10 @@ export interface UseAppResult {
   columns: number;
   /** Current terminal height in rows. Updates on resize. */
   rows: number;
+  /** Duration of the last `performRender` call in milliseconds. */
+  lastFrameTime: number;
+  /** Per-phase breakdown of the last frame's render time. */
+  frameTiming: FrameTiming;
 }
 
 /**
@@ -60,5 +65,7 @@ export function useApp(): UseAppResult {
     forceRedraw: ctx.forceRedraw,
     columns,
     rows,
+    lastFrameTime: ctx.lastFrameTime,
+    frameTiming: ctx.frameTiming,
   };
 }

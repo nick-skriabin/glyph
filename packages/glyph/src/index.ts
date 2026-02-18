@@ -108,4 +108,4 @@ export type {
   LinkHandle,
   TextHandle,
 } from "./types/index.js";
-export type { ScrollIntoViewOptions } from "./hooks/context.js";
+export type { ScrollIntoViewOptions, FrameTiming } from "./hooks/context.js";

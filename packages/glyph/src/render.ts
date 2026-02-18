@@ -84,6 +84,10 @@ export function render(
   const prevFb = new Framebuffer(terminal.columns, terminal.rows);
   const currentFb = new Framebuffer(terminal.columns, terminal.rows);
   let fullRedraw = true;
+  let lastFrameTime = 0;
+  let frameTiming: import("./hooks/context.js").FrameTiming = {
+    total: 0, layout: 0, paint: 0, diff: 0, swap: 0,
+  };
 
   // ---- Input system ----
   const inputHandlers = new Set<InputHandler>();
@@ -361,6 +365,12 @@ export function render(
         resizeHandlers.add(handler);
         return () => { resizeHandlers.delete(handler); };
       },
+      get lastFrameTime() {
+        return lastFrameTime;
+      },
+      get frameTiming() {
+        return frameTiming;
+      },
     };
 
     // ---- Container ----
@@ -385,6 +395,7 @@ export function render(
     }
 
     function performRender(): void {
+      const t0 = performance.now();
       const cols = terminal.columns;
       const rows = terminal.rows;
 
@@ -394,11 +405,11 @@ export function render(
         fullRedraw = true;
       }
 
-      // Compute layout (includes responsive style resolution)
+      // ── Phase 1: Layout ──
+      const tLayout0 = performance.now();
       computeLayout(container.children, cols, rows);
-
-      // Notify layout subscribers
       notifyLayoutSubscribers(container.children);
+      const tLayout1 = performance.now();
 
       // Find cursor info for focused input
       let cursorInfo: { nodeId: string; position: number } | undefined;
@@ -412,21 +423,23 @@ export function render(
         }
       }
 
-      // Paint
+      // ── Phase 2: Paint ──
+      const tPaint0 = performance.now();
       const paintResult = paintTree(container.children, currentFb, {
         cursorInfo,
         useNativeCursor,
       });
+      const tPaint1 = performance.now();
 
-      // Diff & flush
+      // ── Phase 3: Diff & flush ──
+      const tDiff0 = performance.now();
       const output = diffFramebuffers(prevFb, currentFb, fullRedraw);
-
       if (output.length > 0) {
         terminal.write(output);
       }
+      const tDiff1 = performance.now();
 
       // Render images on top of framebuffer
-      // Hide cursor while rendering images to prevent artifacts
       if (pendingImageRenders.size > 0 && nativeCursorVisible) {
         terminal.hideCursor();
         nativeCursorVisible = false;
@@ -436,28 +449,36 @@ export function render(
       // Handle native cursor positioning
       if (useNativeCursor) {
         if (paintResult.cursorPosition) {
-          // Set cursor color to contrast with input background
           const cursorColor = getContrastCursorColor(paintResult.cursorPosition.bg);
           terminal.setCursorColor(cursorColor);
-          // Position and show native cursor
           terminal.moveCursor(paintResult.cursorPosition.x, paintResult.cursorPosition.y);
           if (!nativeCursorVisible) {
             terminal.showCursor();
             nativeCursorVisible = true;
           }
         } else {
-          // No focused input - always hide native cursor
-          // (ensures cursor is hidden when Image or other non-input is focused)
           terminal.hideCursor();
           nativeCursorVisible = false;
         }
       }
 
-      // Swap buffers
+      // ── Phase 4: Swap buffers ──
+      const tSwap0 = performance.now();
       for (let i = 0; i < currentFb.cells.length; i++) {
         prevFb.cells[i] = { ...currentFb.cells[i]! };
       }
+      const tSwap1 = performance.now();
+
       fullRedraw = false;
+      const total = performance.now() - t0;
+      lastFrameTime = total;
+      frameTiming = {
+        total,
+        layout: tLayout1 - tLayout0,
+        paint: tPaint1 - tPaint0,
+        diff: tDiff1 - tDiff0,
+        swap: tSwap1 - tSwap0,
+      };
     }
 
     function notifyLayoutSubscribers(nodes: GlyphNode[]): void {
