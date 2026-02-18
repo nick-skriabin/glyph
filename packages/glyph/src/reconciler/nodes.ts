@@ -32,6 +32,8 @@ export interface GlyphNode {
   _hasMeasureFunc: boolean;
   /** @internal Whether this node's visual content changed since the last paint. */
   _paintDirty: boolean;
+  /** @internal Cached text rasterization result (managed by painter.ts). */
+  _textCache: any;
 }
 
 export interface GlyphTextInstance {
@@ -87,6 +89,7 @@ export function createGlyphNode(
     _lastYogaStyle: null,
     _hasMeasureFunc: false,
     _paintDirty: true,
+    _textCache: null,
   };
 }
 

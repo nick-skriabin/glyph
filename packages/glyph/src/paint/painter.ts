@@ -280,10 +280,114 @@ interface StyledChar {
   style: TextSegment["style"];
 }
 
+// ── Text rasterization cache ────────────────────────────────────
+// Caches the result of collectStyledSegments → parseAnsi → wrap → style
+// merge so that text nodes painted only because an ancestor is dirty
+// (content unchanged) can skip all text processing and replay the
+// cached characters directly.
+
+interface CachedChar {
+  char: string;
+  charWidth: number;
+  fg: Color | undefined;
+  bg: Color | undefined;
+  bold: boolean | undefined;
+  dim: boolean | undefined;
+  italic: boolean | undefined;
+  underline: boolean | undefined;
+}
+
+interface CachedTextLine {
+  chars: CachedChar[];
+  visibleWidth: number;
+}
+
+interface TextRasterCache {
+  // ── Cache key ──
+  text: string | null;
+  innerWidth: number;
+  styleRef: ResolvedStyle;
+  iColor: Color | undefined;
+  iBg: Color | undefined;
+  iBold: boolean | undefined;
+  iDim: boolean | undefined;
+  iItalic: boolean | undefined;
+  iUnderline: boolean | undefined;
+  // ── Cached result ──
+  lines: CachedTextLine[];
+  textAlign: string;
+}
+
+function textCacheValid(
+  cache: TextRasterCache,
+  text: string | null,
+  innerWidth: number,
+  styleRef: ResolvedStyle,
+  inherited: ReturnType<typeof getInheritedTextStyle>,
+): boolean {
+  return (
+    cache.text === text &&
+    cache.innerWidth === innerWidth &&
+    cache.styleRef === styleRef &&
+    cache.iColor === inherited.color &&
+    cache.iBg === inherited.bg &&
+    cache.iBold === inherited.bold &&
+    cache.iDim === inherited.dim &&
+    cache.iItalic === inherited.italic &&
+    cache.iUnderline === inherited.underline
+  );
+}
+
+function paintFromCache(
+  cache: TextRasterCache,
+  node: GlyphNode,
+  fb: Framebuffer,
+  clip: ClipRect,
+): void {
+  const { innerX, innerY, innerWidth, innerHeight } = node.layout;
+  const textAlign = cache.textAlign;
+
+  for (let lineIdx = 0; lineIdx < cache.lines.length && lineIdx < innerHeight; lineIdx++) {
+    const line = cache.lines[lineIdx]!;
+    let offsetX = 0;
+    if (textAlign === "center") {
+      offsetX = Math.max(0, Math.floor((innerWidth - line.visibleWidth) / 2));
+    } else if (textAlign === "right") {
+      offsetX = Math.max(0, innerWidth - line.visibleWidth);
+    }
+
+    let col = 0;
+    for (const cc of line.chars) {
+      if (cc.charWidth > 0) {
+        setClipped(
+          fb, clip,
+          innerX + offsetX + col, innerY + lineIdx,
+          cc.char,
+          cc.fg, cc.bg, cc.bold, cc.dim, cc.italic, cc.underline,
+        );
+      }
+      col += cc.charWidth;
+    }
+  }
+}
+
 function paintText(node: GlyphNode, fb: Framebuffer, clip: ClipRect): void {
   const { innerX, innerY, innerWidth, innerHeight } = node.layout;
   const inherited = getInheritedTextStyle(node);
-  
+
+  // ── Cache check ──
+  // Skip cache for nodes with GlyphNode children (nested Text) — their
+  // styling depends on children's resolved styles which aren't tracked here.
+  const hasNestedTextNodes = node.children.length > 0;
+  if (!hasNestedTextNodes) {
+    const cache = node._textCache as TextRasterCache | null;
+    if (cache && textCacheValid(cache, node.text, innerWidth, node.resolvedStyle, inherited)) {
+      paintFromCache(cache, node, fb, clip);
+      return;
+    }
+  }
+
+  // ── Full rasterization ──
   // Collect styled segments from the nested text tree
   const segments = collectStyledSegments(node, inherited);
   if (segments.length === 0) return;
@@ -321,18 +425,18 @@ function paintText(node: GlyphNode, fb: Framebuffer, clip: ClipRect): void {
   }
   
   // Split into lines at line breaks
-  const lines: StyledChar[][] = [];
+  const rawLines: StyledChar[][] = [];
   let lineStart = 0;
   for (const breakIdx of lineBreaks) {
-    lines.push(styledChars.slice(lineStart, breakIdx));
+    rawLines.push(styledChars.slice(lineStart, breakIdx));
     lineStart = breakIdx;
   }
-  lines.push(styledChars.slice(lineStart)); // Last line (or only line if no breaks)
+  rawLines.push(styledChars.slice(lineStart)); // Last line (or only line if no breaks)
   
   // Wrap each line and track styled chars
   const wrappedLines: StyledChar[][] = [];
   
-  for (const line of lines) {
+  for (const line of rawLines) {
     if (line.length === 0) {
       wrappedLines.push([]);
       continue;
@@ -355,33 +459,66 @@ function paintText(node: GlyphNode, fb: Framebuffer, clip: ClipRect): void {
       wrappedLines.push(wrappedLine);
     }
   }
-  
-  // Paint each wrapped line
+
+  // ── Build cache + paint in one pass ──
+  const cachedLines: CachedTextLine[] = [];
+
   for (let lineIdx = 0; lineIdx < wrappedLines.length && lineIdx < innerHeight; lineIdx++) {
     const line = wrappedLines[lineIdx]!;
-    const visibleWidth = line.reduce((sum, sc) => sum + ttyCharWidth(sc.char), 0);
-    
+    const cachedChars: CachedChar[] = [];
+    let visibleWidth = 0;
+
+    for (const { char, style } of line) {
+      const charWidth = ttyCharWidth(char);
+      const fg = autoContrastFg(style.color, style.bg);
+      cachedChars.push({
+        char, charWidth,
+        fg, bg: style.bg,
+        bold: style.bold, dim: style.dim,
+        italic: style.italic, underline: style.underline,
+      });
+      visibleWidth += charWidth;
+    }
+
+    cachedLines.push({ chars: cachedChars, visibleWidth });
+
+    // Paint this line
     let offsetX = 0;
     if (textAlign === "center") {
       offsetX = Math.max(0, Math.floor((innerWidth - visibleWidth) / 2));
     } else if (textAlign === "right") {
       offsetX = Math.max(0, innerWidth - visibleWidth);
     }
-    
+
     let col = 0;
-    for (const { char, style } of line) {
-      const charWidth = ttyCharWidth(char);
-      if (charWidth > 0) {
-        const fg = autoContrastFg(style.color, style.bg);
+    for (const cc of cachedChars) {
+      if (cc.charWidth > 0) {
         setClipped(
           fb, clip,
           innerX + offsetX + col, innerY + lineIdx,
-          char,
-          fg, style.bg, style.bold, style.dim, style.italic, style.underline,
+          cc.char,
+          cc.fg, cc.bg, cc.bold, cc.dim, cc.italic, cc.underline,
         );
       }
-      col += charWidth;
+      col += cc.charWidth;
     }
+  }
+
+  // Store cache (only for simple text nodes without nested children)
+  if (!hasNestedTextNodes) {
+    node._textCache = {
+      text: node.text,
+      innerWidth,
+      styleRef: node.resolvedStyle,
+      iColor: inherited.color,
+      iBg: inherited.bg,
+      iBold: inherited.bold,
+      iDim: inherited.dim,
+      iItalic: inherited.italic,
+      iUnderline: inherited.underline,
+      lines: cachedLines,
+      textAlign,
+    } satisfies TextRasterCache;
   }
 }
 
