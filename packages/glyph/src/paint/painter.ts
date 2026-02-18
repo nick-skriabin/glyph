@@ -8,6 +8,7 @@ import type { Color, ResolvedStyle } from "../types/index.js";
 import { wrapLines } from "../layout/textMeasure.js";
 import { ttyStringWidth, ttyCharWidth } from "../utils/ttyWidth.js";
 import { parseAnsi, stripAnsi } from "./ansi.js";
+import { framePerf as perf } from "../perf.js";
 
 interface ClipRect {
   x: number;
@@ -58,6 +59,7 @@ export function paintTree(
   const result: PaintResult = {};
 
   // Collect all nodes with their z-index for proper ordering
+  const tCollect0 = performance.now();
   const entries: PaintEntry[] = [];
   const screenClip: ClipRect = { x: 0, y: 0, width: fb.width, height: fb.height };
 
@@ -65,17 +67,26 @@ export function paintTree(
     if (root.hidden) continue;
     collectPaintEntries(root, screenClip, root.resolvedStyle.zIndex ?? 0, entries, false);
   }
+  perf.collectEntries = performance.now() - tCollect0;
 
   // Sort by zIndex (stable sort preserves tree order within same z)
+  const tSort0 = performance.now();
   entries.sort((a, b) => a.zIndex - b.zIndex);
+  perf.sortEntries = performance.now() - tSort0;
+
+  perf.totalEntries = entries.length;
+  let dirtyCount = 0;
+  let preClearCells = 0;
 
   // Paint each entry
+  const tPaint0 = performance.now();
   for (const entry of entries) {
     const node = entry.node;
 
     // On incremental frames, skip nodes that aren't dirty
     // (dirty = node._paintDirty OR an ancestor was dirty)
     if (!full && !entry.dirty) continue;
+    dirtyCount++;
 
     // Compute inherited style ONCE per node — reused by pre-clear,
     // paintNode, paintText, and paintInput.
@@ -94,6 +105,7 @@ export function paintTree(
         for (let col = x; col < x + width; col++) {
           if (isInClip(col, row, entry.clip)) {
             fb.setChar(col, row, " ", undefined, inherited.bg);
+            preClearCells++;
           }
         }
       }
@@ -107,6 +119,9 @@ export function paintTree(
       result.cursorPosition = nodeResult.cursorPosition;
     }
   }
+  perf.paintLoop = performance.now() - tPaint0;
+  perf.dirtyEntries = dirtyCount;
+  perf.preClearCells = preClearCells;
 
   return result;
 }
@@ -404,9 +419,11 @@ function paintText(node: GlyphNode, fb: Framebuffer, clip: ClipRect, inherited: 
   if (!hasNestedTextNodes) {
     const cache = node._textCache as TextRasterCache | null;
     if (cache && textCacheValid(cache, node.text, innerWidth, node.resolvedStyle, inherited)) {
+      perf.textCacheHits++;
       paintFromCache(cache, node, fb, clip);
       return;
     }
+    perf.textCacheMisses++;
   }
 
   // ── Full rasterization ──

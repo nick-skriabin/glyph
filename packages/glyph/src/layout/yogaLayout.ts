@@ -15,6 +15,7 @@ import { isLayoutDirty, resetLayoutDirty } from "../reconciler/nodes.js";
 import type { ResolvedStyle, DimensionValue } from "../types/index.js";
 import { measureText } from "./textMeasure.js";
 import { resolveNodeStyles } from "./responsive.js";
+import { framePerf as perf } from "../perf.js";
 
 const FLEX_DIR_MAP: Record<string, FlexDirection> = {
   row: FlexDirection.Row,
@@ -273,21 +274,29 @@ export function computeLayout(
   }
 
   // 1. Resolve responsive style values for the current terminal dimensions
+  const t0 = performance.now();
   resolveNodeStyles(roots, screenWidth, screenHeight);
+  perf.resolveStyles = performance.now() - t0;
 
   // 2. Sync changed styles + measure funcs (structure managed by reconciler)
+  const t1 = performance.now();
   syncYogaStyles(roots);
+  perf.syncYogaStyles = performance.now() - t1;
 
   // 3. Update root dimensions and calculate layout
+  const t2 = performance.now();
   rootYoga.setWidth(screenWidth);
   rootYoga.setHeight(screenHeight);
   rootYoga.calculateLayout(screenWidth, screenHeight, Direction.LTR);
+  perf.yogaCalculate = performance.now() - t2;
 
   // 4. Extract computed layout into GlyphNodes
+  const t3 = performance.now();
   for (const child of roots) {
     if (child.hidden || !child.yogaNode) continue;
     extractLayout(child, 0, 0);
   }
+  perf.extractLayout = performance.now() - t3;
 
   resetLayoutDirty();
   return true;

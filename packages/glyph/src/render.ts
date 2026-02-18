@@ -32,6 +32,7 @@ import type {
 } from "./hooks/context.js";
 import { renderImageEscapeSequence } from "./runtime/imageProtocol.js";
 import type { RenderOptions, AppHandle, LayoutRect } from "./types/index.js";
+import { resetFramePerf, flushFramePerf, initPerfLog, framePerf as perf } from "./perf.js";
 
 /**
  * Mount a React element into the terminal and start the render loop.
@@ -71,6 +72,9 @@ export function render(
 
   const terminal = new Terminal(stdout, stdin);
   terminal.setup();
+
+  // Initialize frame profiler (writes to /tmp/glyph-profile.log)
+  if (debug) initPerfLog();
 
   // Track native cursor state to avoid redundant escape sequences
   let nativeCursorVisible = false;
@@ -401,6 +405,7 @@ export function render(
     }
 
     function performRender(): void {
+      if (debug) resetFramePerf();
       const t0 = performance.now();
       const cols = terminal.columns;
       const rows = terminal.rows;
@@ -489,6 +494,7 @@ export function render(
       const tSwap0 = performance.now();
       prevFb.copyFrom(currentFb);
       const tSwap1 = performance.now();
+      if (debug) perf.swapCopy = tSwap1 - tSwap0;
 
       fullRedraw = false;
       const total = performance.now() - t0;
@@ -500,6 +506,9 @@ export function render(
         diff: tDiff1 - tDiff0,
         swap: tSwap1 - tSwap0,
       };
+
+      // Flush profiling data (only when debug=true)
+      if (debug) flushFramePerf(total);
     }
 
     function notifyLayoutSubscribers(nodes: GlyphNode[]): void {

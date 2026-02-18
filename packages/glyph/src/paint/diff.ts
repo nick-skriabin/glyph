@@ -2,6 +2,7 @@ import type { Cell } from "./framebuffer.js";
 import { Framebuffer } from "./framebuffer.js";
 import { colorToFg, colorToBg } from "./color.js";
 import { ttyCharWidth } from "../utils/ttyWidth.js";
+import { framePerf as perf } from "../perf.js";
 
 const ESC = "\x1b";
 const CSI = `${ESC}[`;
@@ -123,6 +124,12 @@ export function diffFramebuffers(
     cursorY = 0;
   }
 
+  const tLoop0 = performance.now();
+  let cellsTotal = 0;
+  let cellsChanged = 0;
+  let cursorMovesCount = 0;
+  let sgrChangesCount = 0;
+
   for (let y = 0; y < next.height; y++) {
     for (let x = 0; x < next.width; x++) {
       const nc = next.get(x, y)!;
@@ -131,21 +138,25 @@ export function diffFramebuffers(
       // character (CJK / emoji).  The leading cell already wrote the full
       // glyph and advanced the terminal cursor past this column.
       if (nc.ch === "") continue;
+      cellsTotal++;
 
       if (!fullRedraw) {
         const pc = prev.get(x, y);
         if (pc && next.cellsEqual(nc, pc)) continue;
       }
+      cellsChanged++;
 
       // Move cursor if it isn't already at the right position
       if (cursorY !== y || cursorX !== x) {
         writeCursorMove(x, y);
+        cursorMovesCount++;
       }
 
       const sgr = buildSGR(nc);
       if (sgr !== lastSGR) {
         writeAscii(sgr);
         lastSGR = sgr;
+        sgrChangesCount++;
       }
 
       writeStr(nc.ch);
@@ -155,6 +166,11 @@ export function diffFramebuffers(
       cursorY = y;
     }
   }
+  perf.diffLoop = performance.now() - tLoop0;
+  perf.cellsTotal = cellsTotal;
+  perf.cellsChanged = cellsChanged;
+  perf.cursorMoves = cursorMovesCount;
+  perf.sgrChanges = sgrChangesCount;
 
   if (off > 0) {
     writeAscii(`${CSI}0m`);
@@ -188,5 +204,8 @@ export function diffFramebuffers(
 
   // Return a string — no API change.  All escape sequences are pure
   // ASCII so the mixed latin1/utf8 buffer is valid utf8 throughout.
-  return buf.toString("utf8", 0, off);
+  const tStr0 = performance.now();
+  const result = buf.toString("utf8", 0, off);
+  perf.diffToString = performance.now() - tStr0;
+  return result;
 }
