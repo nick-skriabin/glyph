@@ -32,6 +32,8 @@ export interface GlyphNode {
   _hasMeasureFunc: boolean;
   /** @internal Whether this node's visual content changed since the last paint. */
   _paintDirty: boolean;
+  /** @internal Previous layout rect — set when layout changes so the painter can clear the OLD position. */
+  _prevLayout: LayoutRect | null;
   /** @internal Cached text rasterization result (managed by painter.ts). */
   _textCache: any;
 }
@@ -89,6 +91,7 @@ export function createGlyphNode(
     _lastYogaStyle: null,
     _hasMeasureFunc: false,
     _paintDirty: true,
+    _prevLayout: null,
     _textCache: null,
   };
 }

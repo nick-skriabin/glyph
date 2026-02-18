@@ -223,11 +223,14 @@ function extractLayout(node: GlyphNode, parentX: number, parentY: number): void 
       prev.width !== width || prev.height !== height ||
       prev.innerX !== innerX || prev.innerY !== innerY ||
       prev.innerWidth !== innerWidth || prev.innerHeight !== innerHeight) {
+    // Store old layout so the painter can clear stale pixels at the
+    // previous position WITHOUT marking the parent dirty.  This is the
+    // key insight: marking the parent propagated ancestorDirty to ALL
+    // descendants, causing 215/215 dirty nodes.  Targeted old-rect clear
+    // handles the same cleanup with zero cascade.
+    node._prevLayout = prev;
     node.layout = { x, y, width, height, innerX, innerY, innerWidth, innerHeight };
-    // Node moved or resized → needs repaint.  Also mark parent so its area
-    // is pre-cleared (covers old child positions within the parent bounds).
     node._paintDirty = true;
-    if (node.parent) node.parent._paintDirty = true;
   }
 
   for (const child of node.children) {

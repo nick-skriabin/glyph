@@ -92,20 +92,35 @@ export function paintTree(
     // paintNode, paintText, and paintInput.
     const inherited = getInheritedTextStyle(node);
 
-    // On incremental frames, pre-clear the node's area so stale pixels
-    // from removed/moved children or shorter text are erased.
-    //
-    // Only pre-clear SELF-dirty nodes: if the node is dirty only because
-    // an ancestor propagated its dirty flag, the ancestor's pre-clear
-    // already erased this area.  Also skip nodes with their own bg —
-    // paintNode will fill the area anyway.
-    if (!full && node._paintDirty && !node.resolvedStyle.bg) {
-      const { x, y, width, height } = node.layout;
-      for (let row = y; row < y + height; row++) {
-        for (let col = x; col < x + width; col++) {
-          if (isInClip(col, row, entry.clip)) {
-            fb.setChar(col, row, " ", undefined, inherited.bg);
-            preClearCells++;
+    // On incremental frames, clear stale pixels.
+    // Two cases:
+    //  1. Node MOVED/RESIZED — clear the OLD rect so ghost pixels vanish.
+    //  2. Node content changed in-place — clear current rect (only if no bg,
+    //     since paintNode fills bg anyway).
+    if (!full && node._paintDirty) {
+      // Case 1: targeted old-position clear (prevents parent-cascade dirtying)
+      const prev = node._prevLayout;
+      if (prev && prev.width > 0 && prev.height > 0) {
+        for (let row = prev.y; row < prev.y + prev.height; row++) {
+          for (let col = prev.x; col < prev.x + prev.width; col++) {
+            if (isInClip(col, row, entry.clip)) {
+              fb.setChar(col, row, " ", undefined, inherited.bg);
+              preClearCells++;
+            }
+          }
+        }
+        node._prevLayout = null;
+      }
+      // Case 2: content changed but node didn't move — clear current area
+      // (skip if node has its own bg since paintNode fills it)
+      else if (!node.resolvedStyle.bg) {
+        const { x, y, width, height } = node.layout;
+        for (let row = y; row < y + height; row++) {
+          for (let col = x; col < x + width; col++) {
+            if (isInClip(col, row, entry.clip)) {
+              fb.setChar(col, row, " ", undefined, inherited.bg);
+              preClearCells++;
+            }
           }
         }
       }
