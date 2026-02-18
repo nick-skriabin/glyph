@@ -34,6 +34,10 @@ export interface GlyphNode {
   _paintDirty: boolean;
   /** @internal Previous layout rect — set when layout changes so the painter can clear the OLD position. */
   _prevLayout: LayoutRect | null;
+  /** @internal Cached Yoga relative left offset (avoids WASM reads when parent moved). */
+  _relLeft: number;
+  /** @internal Cached Yoga relative top offset (avoids WASM reads when parent moved). */
+  _relTop: number;
   /** @internal Cached text rasterization result (managed by painter.ts). */
   _textCache: any;
 }
@@ -53,6 +57,24 @@ export interface GlyphContainer {
 
 // ── Shared empty style (avoids creating new {} on every commitUpdate) ──
 export const EMPTY_STYLE: Style = Object.freeze({}) as Style;
+
+/**
+ * Fast shallow equality for Style objects.  Compares own keys with `===`.
+ * Returns `true` when every property is reference-identical — covers all
+ * primitives (strings, numbers, booleans) and same-reference objects.
+ */
+export function shallowStyleEqual(a: Style, b: Style): boolean {
+  const aRec = a as Record<string, unknown>;
+  const bRec = b as Record<string, unknown>;
+  const aKeys = Object.keys(aRec);
+  const bKeys = Object.keys(bRec);
+  if (aKeys.length !== bKeys.length) return false;
+  for (let i = 0; i < aKeys.length; i++) {
+    const k = aKeys[i]!;
+    if (aRec[k] !== bRec[k]) return false;
+  }
+  return true;
+}
 
 // ── Layout dirty tracking ───────────────────────────────────────
 // Tracks whether Yoga calculateLayout needs to run.
@@ -92,6 +114,8 @@ export function createGlyphNode(
     _hasMeasureFunc: false,
     _paintDirty: true,
     _prevLayout: null,
+    _relLeft: 0,
+    _relTop: 0,
     _textCache: null,
   };
 }

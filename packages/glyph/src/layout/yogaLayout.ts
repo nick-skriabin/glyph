@@ -196,46 +196,86 @@ function syncYogaStyles(nodes: GlyphNode[]): boolean {
   return anyChanged;
 }
 
-function extractLayout(node: GlyphNode, parentX: number, parentY: number): void {
+function extractLayout(
+  node: GlyphNode,
+  parentX: number,
+  parentY: number,
+  parentMoved: boolean,
+): void {
   const yn = node.yogaNode!;
-  const computedLayout = yn.getComputedLayout();
+  const hasNew = yn.hasNewLayout();
 
-  const x = parentX + computedLayout.left;
-  const y = parentY + computedLayout.top;
-  const width = computedLayout.width;
-  const height = computedLayout.height;
+  // Fast path: Yoga didn't recalculate this node AND parent didn't move.
+  // The entire subtree is guaranteed unchanged — skip it.
+  if (!hasNew && !parentMoved) return;
 
-  const borderWidth = node.resolvedStyle.border && node.resolvedStyle.border !== "none" ? 1 : 0;
-  const paddingTop = yn.getComputedPadding(Edge.Top);
-  const paddingRight = yn.getComputedPadding(Edge.Right);
-  const paddingBottom = yn.getComputedPadding(Edge.Bottom);
-  const paddingLeft = yn.getComputedPadding(Edge.Left);
+  let layoutChanged = false;
 
-  const innerX = x + borderWidth + paddingLeft;
-  const innerY = y + borderWidth + paddingTop;
-  const innerWidth = Math.max(0, width - borderWidth * 2 - paddingLeft - paddingRight);
-  const innerHeight = Math.max(0, height - borderWidth * 2 - paddingTop - paddingBottom);
+  if (hasNew) {
+    // ── Yoga recalculated this node: read from WASM ──
+    yn.markLayoutSeen();
+    const cl = yn.getComputedLayout();
 
-  // Only create new layout object if values actually changed (prevents infinite re-renders)
-  const prev = node.layout;
-  if (!prev ||
-      prev.x !== x || prev.y !== y ||
-      prev.width !== width || prev.height !== height ||
-      prev.innerX !== innerX || prev.innerY !== innerY ||
-      prev.innerWidth !== innerWidth || prev.innerHeight !== innerHeight) {
-    // Store old layout so the painter can clear stale pixels at the
-    // previous position WITHOUT marking the parent dirty.  This is the
-    // key insight: marking the parent propagated ancestorDirty to ALL
-    // descendants, causing 215/215 dirty nodes.  Targeted old-rect clear
-    // handles the same cleanup with zero cascade.
-    node._prevLayout = prev;
-    node.layout = { x, y, width, height, innerX, innerY, innerWidth, innerHeight };
-    node._paintDirty = true;
+    const x = parentX + cl.left;
+    const y = parentY + cl.top;
+    const width = cl.width;
+    const height = cl.height;
+
+    const bw = node.resolvedStyle.border && node.resolvedStyle.border !== "none" ? 1 : 0;
+    const padTop = yn.getComputedPadding(Edge.Top);
+    const padRight = yn.getComputedPadding(Edge.Right);
+    const padBottom = yn.getComputedPadding(Edge.Bottom);
+    const padLeft = yn.getComputedPadding(Edge.Left);
+
+    const innerX = x + bw + padLeft;
+    const innerY = y + bw + padTop;
+    const innerWidth = Math.max(0, width - bw * 2 - padLeft - padRight);
+    const innerHeight = Math.max(0, height - bw * 2 - padTop - padBottom);
+
+    // Cache relative offset for the parent-moved fast path next frame
+    node._relLeft = cl.left;
+    node._relTop = cl.top;
+
+    const prev = node.layout;
+    if (!prev ||
+        prev.x !== x || prev.y !== y ||
+        prev.width !== width || prev.height !== height ||
+        prev.innerX !== innerX || prev.innerY !== innerY ||
+        prev.innerWidth !== innerWidth || prev.innerHeight !== innerHeight) {
+      node._prevLayout = prev;
+      node.layout = { x, y, width, height, innerX, innerY, innerWidth, innerHeight };
+      node._paintDirty = true;
+      layoutChanged = true;
+    }
+  } else {
+    // ── Parent moved but this node's own relative layout is unchanged ──
+    // Just apply a position delta — zero WASM calls.
+    const prev = node.layout!;
+    const newX = parentX + node._relLeft;
+    const newY = parentY + node._relTop;
+    const dx = newX - prev.x;
+    const dy = newY - prev.y;
+
+    if (dx !== 0 || dy !== 0) {
+      node._prevLayout = prev;
+      node.layout = {
+        x: newX,
+        y: newY,
+        width: prev.width,
+        height: prev.height,
+        innerX: prev.innerX + dx,
+        innerY: prev.innerY + dy,
+        innerWidth: prev.innerWidth,
+        innerHeight: prev.innerHeight,
+      };
+      node._paintDirty = true;
+      layoutChanged = true;
+    }
   }
 
   for (const child of node.children) {
     if (child.hidden || !child.yogaNode) continue;
-    extractLayout(child, x, y);
+    extractLayout(child, node.layout!.x, node.layout!.y, layoutChanged);
   }
 }
 
@@ -297,7 +337,7 @@ export function computeLayout(
   const t3 = performance.now();
   for (const child of roots) {
     if (child.hidden || !child.yogaNode) continue;
-    extractLayout(child, 0, 0);
+    extractLayout(child, 0, 0, force);
   }
   perf.extractLayout = performance.now() - t3;
 
