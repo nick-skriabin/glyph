@@ -7,6 +7,15 @@ import type { Style } from "../types/index.js";
 /** Run computeLayout with an ephemeral root Yoga node (for tests). */
 function computeWithRoot(roots: GlyphNode[], cols: number, rows: number) {
   const rootYoga = createRootYogaNode();
+  // Wire root-level GlyphNodes into the ephemeral root Yoga node
+  // (in production, appendChildToContainer handles this)
+  for (const root of roots) {
+    if (root.yogaNode) {
+      const prev = root.yogaNode.getParent();
+      if (prev) prev.removeChild(root.yogaNode);
+      rootYoga.insertChild(root.yogaNode, rootYoga.getChildCount());
+    }
+  }
   computeLayout(roots, cols, rows, rootYoga);
   // Detach children before freeing so persistent GlyphNode.yogaNodes survive
   while (rootYoga.getChildCount() > 0) {

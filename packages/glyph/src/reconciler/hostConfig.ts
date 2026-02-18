@@ -15,6 +15,7 @@ import {
   insertBefore as glyphInsertBefore,
   insertTextBefore as glyphInsertTextBefore,
   freeYogaNode,
+  yogaAppendChild,
 } from "./nodes.js";
 import type { Style } from "../types/index.js";
 
@@ -176,6 +177,12 @@ export const hostConfig = {
     const node = child as GlyphNode;
     node.parent = null;
     container.children.push(node);
+    // Sync Yoga tree: add to root Yoga node
+    if (container.yogaNode && node.yogaNode) {
+      const prev = node.yogaNode.getParent();
+      if (prev) prev.removeChild(node.yogaNode);
+      container.yogaNode.insertChild(node.yogaNode, container.yogaNode.getChildCount());
+    }
   },
 
   insertBefore(
@@ -202,6 +209,8 @@ export const hostConfig = {
       } else {
         parentInstance.allChildren.push(node);
       }
+      // Sync Yoga tree (raw-text has no yogaNode, just append)
+      yogaAppendChild(parentInstance, node);
     } else {
       glyphInsertBefore(parentInstance, child as GlyphNode, beforeChild as GlyphNode);
     }
@@ -220,6 +229,20 @@ export const hostConfig = {
       container.children.splice(idx, 0, node);
     } else {
       container.children.push(node);
+    }
+    // Sync Yoga tree
+    if (container.yogaNode && node.yogaNode && before.yogaNode) {
+      const prev = node.yogaNode.getParent();
+      if (prev) prev.removeChild(node.yogaNode);
+      const count = container.yogaNode.getChildCount();
+      let yogaIdx = count;
+      for (let i = 0; i < count; i++) {
+        if (container.yogaNode.getChild(i) === before.yogaNode) {
+          yogaIdx = i;
+          break;
+        }
+      }
+      container.yogaNode.insertChild(node.yogaNode, yogaIdx);
     }
   },
 
@@ -243,6 +266,11 @@ export const hostConfig = {
     const idx = container.children.indexOf(node);
     if (idx !== -1) {
       container.children.splice(idx, 1);
+    }
+    // Sync Yoga tree
+    if (container.yogaNode && node.yogaNode) {
+      const parent = node.yogaNode.getParent();
+      if (parent) parent.removeChild(node.yogaNode);
     }
   },
 
@@ -305,6 +333,12 @@ export const hostConfig = {
   },
 
   clearContainer(container: GlyphContainer): void {
+    // Detach all Yoga children from root
+    if (container.yogaNode) {
+      while (container.yogaNode.getChildCount() > 0) {
+        container.yogaNode.removeChild(container.yogaNode.getChild(0));
+      }
+    }
     container.children.length = 0;
   },
 

@@ -131,11 +131,10 @@ function applyStyleToYogaNode(yogaNode: YogaNode, style: ResolvedStyle, nodeType
   }
 }
 
-// ── Tree sync ───────────────────────────────────────────────────
-// Each frame we rebuild the Yoga tree STRUCTURE from the GlyphNode
-// tree (the single source of truth).  We reuse the persistent Yoga
-// node objects — only the parent-child wiring is rebuilt.  Styles
-// are applied only when they've changed (using _lastYogaStyle cache).
+// ── Style sync ──────────────────────────────────────────────────
+// The Yoga tree STRUCTURE is managed by the reconciler (appendChild,
+// removeChild, insertBefore in nodes.ts + hostConfig.ts).  Each
+// frame we only need to sync STYLES and install measure functions.
 
 function collectAllText(node: GlyphNode): string {
   if (node.text != null) return node.text;
@@ -151,37 +150,20 @@ function collectAllText(node: GlyphNode): string {
 }
 
 /**
- * Rebuild the Yoga tree structure from the GlyphNode tree and sync
- * styles that have changed.
- *
- * For each Yoga parent:
- * 1. Remove all existing Yoga children (they may have moved/been deleted).
- * 2. Re-insert visible children in the correct order.
- * 3. If the node's resolvedStyle changed, re-apply to the Yoga node.
- * 4. Install measure functions once for text/input leaf nodes.
- * 5. Recurse into children.
+ * Walk the tree and sync styles + measure functions.  No structural
+ * changes — the reconciler keeps the Yoga tree in sync.
  */
-function syncYogaTree(nodes: GlyphNode[], yogaParent: YogaNode): void {
-  // 1. Detach all existing Yoga children from this parent
-  while (yogaParent.getChildCount() > 0) {
-    yogaParent.removeChild(yogaParent.getChild(0));
-  }
-
+function syncYogaStyles(nodes: GlyphNode[]): void {
   for (const node of nodes) {
     if (node.hidden || !node.yogaNode) continue;
 
-    // 2. Detach from previous Yoga parent (if any) before re-inserting
-    const prevParent = node.yogaNode.getParent();
-    if (prevParent) prevParent.removeChild(node.yogaNode);
-    yogaParent.insertChild(node.yogaNode, yogaParent.getChildCount());
-
-    // 3. Re-apply styles only when changed
+    // Apply styles only when resolvedStyle reference changed
     if (node.resolvedStyle !== node._lastYogaStyle) {
       applyStyleToYogaNode(node.yogaNode, node.resolvedStyle, node.type);
       node._lastYogaStyle = node.resolvedStyle;
     }
 
-    // 4. Install measure function once for text/input leaf nodes
+    // Install measure function once for text/input leaf nodes
     if (!node._hasMeasureFunc && (node.type === "text" || node.type === "input")) {
       node.yogaNode.setMeasureFunc((width, widthMode, _height, _heightMode) => {
         let text: string;
@@ -201,9 +183,9 @@ function syncYogaTree(nodes: GlyphNode[], yogaParent: YogaNode): void {
       node._hasMeasureFunc = true;
     }
 
-    // 5. Recurse into children (text/input are leaves — no Yoga children)
+    // Recurse into children
     if (node.type !== "text" && node.type !== "input") {
-      syncYogaTree(node.children, node.yogaNode);
+      syncYogaStyles(node.children);
     }
   }
 }
@@ -270,8 +252,8 @@ export function computeLayout(
   // 1. Resolve responsive style values for the current terminal dimensions
   resolveNodeStyles(roots, screenWidth, screenHeight);
 
-  // 2. Rebuild Yoga tree structure + sync changed styles
-  syncYogaTree(roots, rootYoga);
+  // 2. Sync changed styles + measure funcs (structure managed by reconciler)
+  syncYogaStyles(roots);
 
   // 3. Update root dimensions and calculate layout
   rootYoga.setWidth(screenWidth);

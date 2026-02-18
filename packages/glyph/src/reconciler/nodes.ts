@@ -86,6 +86,8 @@ export function appendChild(parent: GlyphNode, child: GlyphNode): void {
   child.parent = parent;
   parent.children.push(child);
   parent.allChildren.push(child);
+
+  yogaAppendChild(parent, child);
 }
 
 export function appendTextChild(parent: GlyphNode, child: GlyphTextInstance): void {
@@ -102,6 +104,8 @@ export function appendTextChild(parent: GlyphNode, child: GlyphTextInstance): vo
 }
 
 export function removeChild(parent: GlyphNode, child: GlyphNode): void {
+  yogaRemoveChild(parent, child);
+
   const idx = parent.children.indexOf(child);
   if (idx !== -1) {
     parent.children.splice(idx, 1);
@@ -147,6 +151,8 @@ export function insertBefore(
   } else {
     parent.allChildren.push(child);
   }
+
+  yogaInsertBefore(parent, child, beforeChild);
 }
 
 export function insertTextBefore(
@@ -171,11 +177,53 @@ export function insertTextBefore(
   parent.text = parent.rawTextChildren.map((t) => t.text).join("");
 }
 
+// ── Yoga tree helpers ───────────────────────────────────────────
+// These mirror GlyphNode tree ops so the Yoga tree stays in sync
+// with the GlyphNode tree at all times.  Text/input nodes are Yoga
+// leaves (they have a measure function) so their children are never
+// added to the Yoga tree.
+
 /** Detach a Yoga node from its Yoga parent (if any). */
 function yogaDetach(node: GlyphNode): void {
   if (!node.yogaNode) return;
   const parent = node.yogaNode.getParent();
   if (parent) parent.removeChild(node.yogaNode);
+}
+
+/** Append child's Yoga node to parent's Yoga node. */
+export function yogaAppendChild(parent: GlyphNode, child: GlyphNode): void {
+  if (!parent.yogaNode || !child.yogaNode) return;
+  if (parent.type === "text" || parent.type === "input") return;
+  yogaDetach(child);
+  parent.yogaNode.insertChild(child.yogaNode, parent.yogaNode.getChildCount());
+}
+
+/** Remove child's Yoga node from parent's Yoga node. */
+export function yogaRemoveChild(parent: GlyphNode, child: GlyphNode): void {
+  if (!parent.yogaNode || !child.yogaNode) return;
+  if (parent.type === "text" || parent.type === "input") return;
+  const currentParent = child.yogaNode.getParent();
+  if (currentParent) currentParent.removeChild(child.yogaNode);
+}
+
+/** Insert child's Yoga node before beforeChild's Yoga node in parent. */
+export function yogaInsertBefore(
+  parent: GlyphNode,
+  child: GlyphNode,
+  beforeChild: GlyphNode,
+): void {
+  if (!parent.yogaNode || !child.yogaNode || !beforeChild.yogaNode) return;
+  if (parent.type === "text" || parent.type === "input") return;
+  yogaDetach(child);
+  const count = parent.yogaNode.getChildCount();
+  let idx = count;
+  for (let i = 0; i < count; i++) {
+    if (parent.yogaNode.getChild(i) === beforeChild.yogaNode) {
+      idx = i;
+      break;
+    }
+  }
+  parent.yogaNode.insertChild(child.yogaNode, idx);
 }
 
 /**

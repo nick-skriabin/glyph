@@ -645,8 +645,11 @@ export function render(
           terminal.write(clearSeq);
         }
         
-        // Free persistent Yoga root
-        rootYogaNode.freeRecursive();
+        // Free persistent Yoga root (children freed by detachDeletedInstance)
+        while (rootYogaNode.getChildCount() > 0) {
+          rootYogaNode.removeChild(rootYogaNode.getChild(0));
+        }
+        rootYogaNode.free();
 
         terminal.cleanup();
       },
