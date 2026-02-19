@@ -78,27 +78,25 @@ export function paintTree(
   let dirtyCount = 0;
   let preClearCells = 0;
 
-  // Paint each entry
+  // Paint in two passes to prevent stale-area pre-clears from destroying
+  // freshly painted sibling content.  When children are reordered or new
+  // siblings are inserted (e.g. a sidebar appears, shifting EmailList right),
+  // EmailList's old-position pre-clear overlaps the sidebar's new position.
+  // In a single pass the sidebar paints first (tree order), then EmailList's
+  // pre-clear wipes it.  Two passes fix this: clear ALL stale rects first,
+  // then paint ALL nodes — the paint pass always has the final say.
   const tPaint0 = performance.now();
-  for (const entry of entries) {
-    const node = entry.node;
 
-    // On incremental frames, skip nodes that aren't dirty
-    // (dirty = node._paintDirty OR an ancestor was dirty)
-    if (!full && !entry.dirty) continue;
-    dirtyCount++;
+  // ── Pass 1: Pre-clear stale pixels ──
+  if (!full) {
+    for (const entry of entries) {
+      if (!entry.dirty) continue;
+      const node = entry.node;
+      if (!node._paintDirty) continue;
 
-    // Compute inherited style ONCE per node — reused by pre-clear,
-    // paintNode, paintText, and paintInput.
-    const inherited = getInheritedTextStyle(node);
+      const inherited = getInheritedTextStyle(node);
 
-    // On incremental frames, clear stale pixels.
-    // Two cases:
-    //  1. Node MOVED/RESIZED — clear the OLD rect so ghost pixels vanish.
-    //  2. Node content changed in-place — clear current rect (only if no bg,
-    //     since paintNode fills bg anyway).
-    if (!full && node._paintDirty) {
-      // Case 1: targeted old-position clear (prevents parent-cascade dirtying)
+      // Case 1: Node MOVED/RESIZED — clear the OLD rect so ghost pixels vanish.
       const prev = node._prevLayout;
       if (prev && prev.width > 0 && prev.height > 0) {
         for (let row = prev.y; row < prev.y + prev.height; row++) {
@@ -125,8 +123,18 @@ export function paintTree(
         }
       }
     }
+  }
 
-    const nodeResult = paintNode(node, fb, entry.clip, options, inherited);
+  // ── Pass 2: Paint nodes ──
+  for (const entry of entries) {
+    const node = entry.node;
+
+    // On incremental frames, skip nodes that aren't dirty
+    // (dirty = node._paintDirty OR an ancestor was dirty)
+    if (!full && !entry.dirty) continue;
+    dirtyCount++;
+
+    const nodeResult = paintNode(node, fb, entry.clip, options, getInheritedTextStyle(node));
     node._paintDirty = false;
 
     // Capture cursor position from the focused input
