@@ -208,7 +208,10 @@ export const ScrollView = forwardRef<ScrollViewHandle, ScrollViewProps>(function
 
   useEffect(() => {
     if (!focusable || !focusId || !focusCtx || !viewportRef.current) return;
-    return focusCtx.register(focusId, viewportRef.current);
+    // autoFocus: false — the container should never win auto-focus over
+    // its child items.  It's focusable so it can receive keyboard scrolling,
+    // but it shouldn't be auto-focused when children exist.
+    return focusCtx.register(focusId, viewportRef.current, /* autoFocus */ false);
   }, [focusable, focusId, focusCtx]);
 
   const isSelfFocused = focusable && focusId && focusCtx?.focusedId === focusId;
@@ -527,6 +530,29 @@ export const ScrollView = forwardRef<ScrollViewHandle, ScrollViewProps>(function
 
     return unsubscribe;
   }, [scrollToFocus, focusCtx]);
+
+  // ── Initial scroll-to-focus ──
+  // Auto-focus fires during children's effects (before the ScrollView's
+  // follow-focus subscribes), so the onFocusChange handler misses it.
+  // Once layout is ready (viewportHeight > 0, contentHeight > 0), we do
+  // a one-time check: if something inside is already focused, scroll to
+  // it.  For the first item this is a no-op (already visible).
+  const initialScrollDoneRef = useRef(false);
+  useEffect(() => {
+    if (initialScrollDoneRef.current) return;
+    if (!scrollToFocus || !focusCtx || !contentRef.current) return;
+    if (viewportHeight <= 0 || contentHeight <= 0) return;
+
+    initialScrollDoneRef.current = true;
+
+    const fid = focusCtx.focusedId;
+    if (!fid) return;
+
+    const focusedNode = findFocusIdInTree(contentRef.current, fid);
+    if (!focusedNode) return;
+
+    scrollToNodeRef.current(focusedNode, { block: "nearest" });
+  }, [scrollToFocus, focusCtx, viewportHeight, contentHeight]);
 
   // ── Priority Tab handler ──────────────────────────────────────────
   // Owns Tab/Shift+Tab when focus is inside this ScrollView (both
