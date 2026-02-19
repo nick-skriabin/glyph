@@ -64,8 +64,6 @@ export interface CursorState {
   y?: number;
   /** OSC 12 color string for cursor. */
   color?: string;
-  /** Whether cursor was visible before this frame. */
-  wasVisible: boolean;
   /** Previous x (to skip redundant repositioning). */
   prevX: number;
   /** Previous y (to skip redundant repositioning). */
@@ -88,12 +86,12 @@ export function diffFramebuffers(
   // Unsupported terminals silently ignore these sequences.
   writeAscii(`${CSI}?2026h`);
 
-  // Always hide cursor at the start of the sync block.
-  // This ensures the cursor isn't visible at intermediate positions
-  // during cell writes. We'll show it at the final position at the end.
-  if (cursor?.wasVisible) {
-    writeAscii(`${CSI}?25l`);
-  }
+  // Unconditionally hide cursor at the start of every frame.
+  // Even when wasVisible is false, external factors (image protocol
+  // side-effects in tmux, terminal quirks, etc.) can make the cursor
+  // visible without our knowledge.  A single ?25l per frame (6 bytes)
+  // is cheap insurance against state desync.
+  writeAscii(`${CSI}?25l`);
 
   // cursorX/cursorY track the terminal's ACTUAL cursor position,
   // accounting for wide characters that advance the cursor by 2.
@@ -188,24 +186,20 @@ export function diffFramebuffers(
   writeAscii(`${CSI}?7h`);
 
   // ── Cursor handling (end of sync block) ──
-  if (cursor) {
-    if (cursor.visible && cursor.x !== undefined && cursor.y !== undefined) {
-      // Set color only if changed
-      if (cursor.color && cursor.color !== cursor.prevColor) {
-        writeAscii(`\x1b]12;${cursor.color}\x07`);
-      }
-      // Position cursor at target
-      writeAscii(`${CSI}${cursor.y + 1};${cursor.x + 1}H`);
-      // Show cursor (was hidden at start of sync block)
-      writeAscii(`${CSI}?25h`);
-    } else if (!cursor.visible && cursor.wasVisible) {
-      // Cursor was hidden at start, keep it hidden (no-op, already hidden)
+  // Cursor was unconditionally hidden at frame start (?25l).
+  // Show it now only if an input is focused and wants native cursor.
+  if (cursor?.visible && cursor.x !== undefined && cursor.y !== undefined) {
+    // Set color only if changed
+    if (cursor.color && cursor.color !== cursor.prevColor) {
+      writeAscii(`\x1b]12;${cursor.color}\x07`);
     }
-    // If !wasVisible && !visible: cursor stays hidden (no-op)
+    // Position cursor at target
+    writeAscii(`${CSI}${cursor.y + 1};${cursor.x + 1}H`);
+    writeAscii(`${CSI}?25h`);
   }
 
   // End synchronized update — terminal paints everything at once.
-  // writeAscii(`${CSI}?2026l`); // DISABLED: testing DEC 2026 off
+  writeAscii(`${CSI}?2026l`);
 
   // Track output size for diagnostics (helps detect frames that might
   // overwhelm a terminal's sync buffer).

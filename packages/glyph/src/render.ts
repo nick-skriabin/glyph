@@ -467,7 +467,6 @@ export function render(
 
       const cursor: CursorState = {
         visible: wantCursor,
-        wasVisible: nativeCursorVisible,
         x: cursorX >= 0 ? cursorX : undefined,
         y: cursorY >= 0 ? cursorY : undefined,
         color: cursorColor || undefined,
@@ -484,12 +483,16 @@ export function render(
       lastCursorColor = cursorColor;
       const tDiff1 = performance.now();
 
-      // Render images on top of framebuffer
-      if (pendingImageRenders.size > 0 && nativeCursorVisible) {
+      // Render images on top of framebuffer.
+      // Image protocols (Kitty in tmux) may show the cursor as a side
+      // effect, so always hide it after rendering and reset state.
+      if (pendingImageRenders.size > 0) {
+        renderPendingImages();
+        // Ensure cursor is hidden after image data — protocols can
+        // move/show cursor as a side-effect (e.g. Kitty tmux wrapper).
         terminal.hideCursor();
         nativeCursorVisible = false;
       }
-      renderPendingImages();
 
       // ── Phase 4: Swap buffers ──
       const tSwap0 = performance.now();
