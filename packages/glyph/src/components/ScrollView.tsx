@@ -248,7 +248,12 @@ export function ScrollView({
       if (!contentRef.current) return;
 
       const block = options?.block ?? "nearest";
-      const contentTopY = contentRef.current.layout?.y ?? 0;
+      // Use innerY (content area after padding) as the reference, not y
+      // (outer edge).  Children are laid out within the content area, so
+      // subtracting innerY gives the element's position in content-space.
+      // Using y adds a paddingTop offset that throws off all alignment.
+      const cl = contentRef.current.layout;
+      const contentTopY = cl?.innerY ?? cl?.y ?? 0;
       const elementTop = node.layout.y - contentTopY;
       const elementBottom = elementTop + node.layout.height;
       const curOffset = offsetRef.current;
@@ -286,7 +291,14 @@ export function ScrollView({
     }
   }, [offset, maxOffset, setOffset]);
 
-  // Focus-aware scrolling: scroll to make focused element visible
+  // Focus-aware scrolling: scroll to make focused element visible.
+  //
+  // Uses refs (offsetRef, viewportHeightRef, setOffsetRef) instead of
+  // closing over `offset` / `viewportHeight` / `setOffset` so the
+  // handler always reads the LATEST values without needing to
+  // re-subscribe on every scroll tick.  This avoids brief gaps where
+  // the old subscription is torn down and the new one hasn't been
+  // created yet, which could swallow focus-change events.
   useEffect(() => {
     if (!scrollToFocus || !focusCtx || !layoutCtx || !contentRef.current) return;
 
@@ -306,30 +318,30 @@ export function ScrollView({
       const focusedNode = findNode(contentRef.current);
       if (!focusedNode) return; // Focused element is not inside this ScrollView
 
-      // Get layout of focused element relative to content
+      // Get layout of focused element relative to content.
+      // Use innerY (content area after padding) — same reasoning as scrollTo.
       const focusedLayout = layoutCtx.getLayout(focusedNode);
-      const contentTopY = contentRef.current.layout?.y ?? 0;
-      
-      // Calculate element position relative to content top
+      const cl = contentRef.current.layout;
+      const contentTopY = cl?.innerY ?? cl?.y ?? 0;
+
       const elementTop = focusedLayout.y - contentTopY;
       const elementBottom = elementTop + focusedLayout.height;
-      
-      // Current visible range
-      const visibleTop = offset;
-      const visibleBottom = offset + viewportHeight;
-      
-      // Check if element is fully visible
-      if (elementTop < visibleTop) {
+
+      // Read latest scroll state from refs (not closure)
+      const curOffset = offsetRef.current;
+      const vpHeight = viewportHeightRef.current;
+
+      if (elementTop < curOffset) {
         // Element is above visible area - scroll up
-        setOffset(elementTop);
-      } else if (elementBottom > visibleBottom) {
+        setOffsetRef.current(elementTop);
+      } else if (elementBottom > curOffset + vpHeight) {
         // Element is below visible area - scroll down
-        setOffset(elementBottom - viewportHeight);
+        setOffsetRef.current(elementBottom - vpHeight);
       }
     });
 
     return unsubscribe;
-  }, [scrollToFocus, focusCtx, layoutCtx, offset, viewportHeight, setOffset]);
+  }, [scrollToFocus, focusCtx, layoutCtx]);
 
   // Check if this ScrollView contains the currently focused element (or is itself focused)
   const containsFocus = useCallback((): boolean => {
