@@ -5,7 +5,7 @@ import type { GlyphNode } from "../reconciler/nodes.js";
 import { useLayout } from "../hooks/useLayout.js";
 import { useInput } from "../hooks/useInput.js";
 import { FocusContext, InputContext, LayoutContext, ScrollViewContext, nodeScrollContextMap } from "../hooks/context.js";
-import type { ScrollViewContextValue, ScrollViewBounds, ScrollIntoViewOptions } from "../hooks/context.js";
+import type { FocusContextValue, ScrollViewContextValue, ScrollViewBounds, ScrollIntoViewOptions } from "../hooks/context.js";
 
 /**
  * Visible range passed to the render function in virtualized mode.
@@ -528,17 +528,21 @@ export const ScrollView = forwardRef<ScrollViewHandle, ScrollViewProps>(function
     return unsubscribe;
   }, [scrollToFocus, focusCtx]);
 
-  // ── Priority Tab handler (virtualized only) ─────────────────────
-  // Owns Tab/Shift+Tab when focus is inside this ScrollView.
-  // Needed because with the sliding window, dynamically mounted items
-  // register at the END of the global focus order — breaking visual
-  // Tab navigation.  By consuming Tab here we guarantee index-order
-  // navigation and scroll to reveal off-screen items.
+  // ── Priority Tab handler ──────────────────────────────────────────
+  // Owns Tab/Shift+Tab when focus is inside this ScrollView (both
+  // virtualized AND non-virtualized array modes).
   //
-  // In non-virtualized mode all children are mounted and registered
-  // in the correct order, so the default focus system handles Tab.
+  // Why for ALL array-mode ScrollViews?
+  // The default focus system sorts by absolute visual Y position.
+  // With multiple ScrollViews side-by-side, items at the same Y
+  // across different ScrollViews get interleaved.  Scrolled-off items
+  // have wildly negative Y values, making the order even worse.
+  //
+  // By consuming Tab here we guarantee index-order navigation within
+  // each ScrollView.  At the boundary we find the next external
+  // focusable and hand off cleanly.
   useEffect(() => {
-    if (!isArrayVirtualized || !scrollToFocus || !inputCtx || !focusCtx) return;
+    if (!isArrayMode || !scrollToFocus || !inputCtx || !focusCtx) return;
 
     const handler = (key: Key): boolean => {
       if (key.name !== "tab" || key.ctrl || key.alt) return false;
@@ -558,23 +562,41 @@ export const ScrollView = forwardRef<ScrollViewHandle, ScrollViewProps>(function
       if (currentIdx < 0) return false;
 
       const nextIdx = key.shift ? currentIdx - 1 : currentIdx + 1;
-      if (nextIdx < 0 || nextIdx >= childArray.length) return false;
 
-      scrollToIndexRef.current(nextIdx, { block: "nearest" });
+      // ── Within bounds: navigate inside the ScrollView ──
+      if (nextIdx >= 0 && nextIdx < childArray.length) {
+        scrollToIndexRef.current(nextIdx, { block: "nearest" });
 
-      const nextNode = itemRefsRef.current.get(nextIdx);
-      if (nextNode) {
-        const targetId = findFirstFocusId(nextNode);
-        if (targetId) focusCtx.requestFocus(targetId);
-      } else {
-        pendingFocusIndexRef.current = nextIdx;
+        const nextNode = itemRefsRef.current.get(nextIdx);
+        if (nextNode) {
+          const targetId = findFirstFocusId(nextNode);
+          if (targetId) focusCtx.requestFocus(targetId);
+        } else if (isArrayVirtualized) {
+          // Off-screen in virtualized mode — will mount after scroll
+          pendingFocusIndexRef.current = nextIdx;
+        }
+        return true;
       }
 
-      return true;
+      // ── At the boundary: exit to next external focusable ──
+      const externalTarget = findExternalFocusTarget(
+        contentRef.current,
+        viewportRef.current,
+        focusCtx,
+        key.shift ? "backward" : "forward",
+      );
+
+      if (externalTarget) {
+        focusCtx.requestFocus(externalTarget);
+        return true;
+      }
+
+      // No external target — let Tab pass through (wraps via default system)
+      return false;
     };
 
     return inputCtx.subscribePriority(handler);
-  }, [isArrayVirtualized, scrollToFocus, inputCtx, focusCtx, childArray.length]);
+  }, [isArrayMode, scrollToFocus, inputCtx, focusCtx, childArray.length, isArrayVirtualized]);
 
   // ── Resolve pending focus after mount (virtualized only) ──
   useEffect(() => {
@@ -865,4 +887,54 @@ function findFirstFocusId(node: GlyphNode): string | null {
     if (found) return found;
   }
   return null;
+}
+
+/**
+ * When Tab exits a ScrollView, find the next focusable element
+ * OUTSIDE this ScrollView (and outside the viewport box itself).
+ *
+ * Uses the viewport box's stable position (not affected by scrolling)
+ * to pick the correct target for side-by-side or stacked layouts.
+ */
+function findExternalFocusTarget(
+  contentNode: GlyphNode,
+  viewportNode: GlyphNode | null,
+  focusCtx: FocusContextValue,
+  direction: "forward" | "backward",
+): string | null {
+  const allElements = focusCtx.getActiveElements();
+
+  // Filter to elements NOT inside this ScrollView
+  const external = allElements.filter(({ node }) =>
+    node !== viewportNode && !isDescendantOf(node, contentNode),
+  );
+
+  if (external.length === 0) return null;
+
+  // Sort by visual position (same algorithm as the focus system)
+  external.sort((a, b) => {
+    if (a.node.layout.y !== b.node.layout.y) return a.node.layout.y - b.node.layout.y;
+    return a.node.layout.x - b.node.layout.x;
+  });
+
+  // Reference point: the viewport box's stable position
+  const vY = viewportNode?.layout.y ?? 0;
+  const vX = viewportNode?.layout.x ?? 0;
+
+  if (direction === "forward") {
+    // First external element visually after the viewport
+    const idx = external.findIndex(({ node }) =>
+      node.layout.y > vY || (node.layout.y === vY && node.layout.x > vX),
+    );
+    return external[idx !== -1 ? idx : 0]?.id ?? null;
+  } else {
+    // Last external element visually before the viewport
+    for (let i = external.length - 1; i >= 0; i--) {
+      const { node } = external[i]!;
+      if (node.layout.y < vY || (node.layout.y === vY && node.layout.x < vX)) {
+        return external[i]!.id;
+      }
+    }
+    return external[external.length - 1]?.id ?? null;
+  }
 }
