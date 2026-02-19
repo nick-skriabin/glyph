@@ -142,6 +142,28 @@ export function paintTree(
       result.cursorPosition = nodeResult.cursorPosition;
     }
   }
+
+  // If the focused input wasn't dirty (skipped above), we still need its
+  // cursor position so the terminal cursor stays visible.  Compute it from
+  // the node's existing layout without repainting.
+  if (!result.cursorPosition && options.cursorInfo && options.useNativeCursor) {
+    const { nodeId, position } = options.cursorInfo;
+    for (const entry of entries) {
+      const node = entry.node;
+      if (node.type === "input" && node.focusId === nodeId) {
+        const { innerX, innerY, innerWidth } = node.layout;
+        if (innerWidth > 0) {
+          const cursorCol = Math.min(position, innerWidth - 1);
+          const cursorX = innerX + cursorCol;
+          if (isInClip(cursorX, innerY, entry.clip)) {
+            result.cursorPosition = { x: cursorX, y: innerY, bg: getInheritedTextStyle(node).bg };
+          }
+        }
+        break;
+      }
+    }
+  }
+
   perf.paintLoop = performance.now() - tPaint0;
   perf.dirtyEntries = dirtyCount;
   perf.preClearCells = preClearCells;
