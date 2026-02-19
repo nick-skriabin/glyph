@@ -154,7 +154,14 @@ export function appendChild(parent: GlyphNode, child: GlyphNode): void {
 
   yogaAppendChild(parent, child);
   markLayoutDirty();
-  parent._paintDirty = true;
+  // NOTE: we intentionally do NOT set parent._paintDirty here.
+  // The parent's own visual content (bg, border) hasn't changed — only
+  // its children list.  If the new child causes layout shifts,
+  // extractLayout will set _paintDirty + _prevLayout on each affected
+  // node.  Eagerly dirtying the parent triggers a destructive pre-clear
+  // of its entire area (Pass 1 Case 2), which wipes content underneath
+  // overlays like JumpNav whose absolute-positioned children don't
+  // affect the parent's layout at all.
 }
 
 export function appendTextChild(parent: GlyphNode, child: GlyphTextInstance): void {
@@ -193,7 +200,8 @@ export function removeChild(parent: GlyphNode, child: GlyphNode): void {
   freeYogaSubtree(child);
 
   markLayoutDirty();
-  parent._paintDirty = true;
+  // Don't set parent._paintDirty — pendingStaleRects handles the removed
+  // area, and extractLayout handles any layout shifts of remaining siblings.
 
   const idx = parent.children.indexOf(child);
   if (idx !== -1) {
@@ -243,7 +251,8 @@ export function insertBefore(
 
   yogaInsertBefore(parent, child, beforeChild);
   markLayoutDirty();
-  parent._paintDirty = true;
+  // Same rationale as appendChild — don't eagerly dirty the parent.
+  // extractLayout handles any layout shifts from the insertion.
 }
 
 export function insertTextBefore(

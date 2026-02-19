@@ -136,21 +136,32 @@ export function paintTree(
 
       const inherited = getInheritedTextStyle(node);
 
-      // Case 1: Node MOVED/RESIZED — clear the OLD rect so ghost pixels vanish.
       const prev = node._prevLayout;
-      if (prev && prev.width > 0 && prev.height > 0) {
-        for (let row = prev.y; row < prev.y + prev.height; row++) {
-          for (let col = prev.x; col < prev.x + prev.width; col++) {
-            if (isInClip(col, row, entry.clip)) {
-              fb.setChar(col, row, " ", undefined, inherited.bg);
-              preClearCells++;
+      if (prev) {
+        // Case 1: Node MOVED/RESIZED — clear the OLD rect so ghost pixels vanish.
+        if (prev.width > 0 && prev.height > 0) {
+          for (let row = prev.y; row < prev.y + prev.height; row++) {
+            for (let col = prev.x; col < prev.x + prev.width; col++) {
+              if (isInClip(col, row, entry.clip)) {
+                fb.setChar(col, row, " ", undefined, inherited.bg);
+                preClearCells++;
+              }
             }
           }
         }
+        // Consume _prevLayout in all cases (including zero-rect from newly
+        // created nodes) so the NEXT frame sees null and can use Case 2
+        // for content-only changes.
         node._prevLayout = null;
       }
-      // Case 2: content changed but node didn't move — clear current area
-      // (skip if node has its own bg since paintNode fills it)
+      // Case 2: content changed but node didn't move — clear current area.
+      // Only fires when _prevLayout is null, meaning the node was already
+      // painted at this position on a prior frame.  New nodes arrive with
+      // _prevLayout set to the default zero-rect (consumed above) — we must
+      // NOT clear their area because it contains content from OTHER nodes
+      // that won't be repainted (e.g. fullscreen JumpNav overlay would
+      // wipe the entire screen).
+      // Skip if node has its own bg since paintNode fills it anyway.
       else if (!node.resolvedStyle.bg) {
         const { x, y, width, height } = node.layout;
         for (let row = y; row < y + height; row++) {
