@@ -106,6 +106,24 @@ export function paintTree(
         }
       }
     }
+    // Mark any surviving entries that overlap the cleared areas as dirty
+    // so they get repainted in Pass 2 (otherwise the content that was
+    // UNDER the removed overlay stays blank).
+    for (const entry of entries) {
+      if (entry.dirty) continue; // already dirty
+      const { x, y, width, height } = entry.node.layout;
+      for (const rect of pendingStaleRects) {
+        if (
+          x < rect.x + rect.width &&
+          x + width > rect.x &&
+          y < rect.y + rect.height &&
+          y + height > rect.y
+        ) {
+          entry.dirty = true;
+          break;
+        }
+      }
+    }
     pendingStaleRects.length = 0;
   }
 
