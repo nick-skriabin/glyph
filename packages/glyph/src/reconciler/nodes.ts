@@ -4,6 +4,13 @@ import type { Style, ResolvedStyle, LayoutRect, Color } from "../types/index.js"
 
 export type GlyphNodeType = "box" | "text" | "input";
 
+/**
+ * Layout rects of recently-removed nodes whose screen area must be cleared
+ * on the next paint frame.  `removeChild` pushes to this list; `paintTree`
+ * drains it during the pre-clear pass.
+ */
+export const pendingStaleRects: Array<{ x: number; y: number; width: number; height: number }> = [];
+
 export type GlyphChild = GlyphNode | GlyphTextInstance;
 
 export interface GlyphNode {
@@ -83,6 +90,20 @@ export function markLayoutDirty(): void { _layoutDirty = true; }
 export function isLayoutDirty(): boolean { return _layoutDirty; }
 export function resetLayoutDirty(): void { _layoutDirty = false; }
 
+/**
+ * Walk a subtree and push every non-zero layout rect into
+ * {@link pendingStaleRects} so the painter can clear those screen areas.
+ */
+function collectStaleRects(node: GlyphNode): void {
+  const { x, y, width, height } = node.layout;
+  if (width > 0 && height > 0) {
+    pendingStaleRects.push({ x, y, width, height });
+  }
+  for (const child of node.children) {
+    collectStaleRects(child);
+  }
+}
+
 
 let nextFocusId = 0;
 export function generateFocusId(): string {
@@ -150,6 +171,12 @@ export function appendTextChild(parent: GlyphNode, child: GlyphTextInstance): vo
 }
 
 export function removeChild(parent: GlyphNode, child: GlyphNode): void {
+  // Save the removed subtree's screen area so the painter can clear it.
+  // This is critical for absolute-positioned children (e.g. Select
+  // dropdowns) whose area falls OUTSIDE the parent's layout rect —
+  // marking the parent dirty alone won't clear the removed overlay.
+  collectStaleRects(child);
+
   // Detach child's Yoga node from this parent's Yoga tree.
   yogaRemoveChild(parent, child);
 

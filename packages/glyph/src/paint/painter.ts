@@ -1,5 +1,5 @@
 import type { GlyphNode, TextSegment } from "../reconciler/nodes.js";
-import { getInheritedTextStyle, collectTextContent, collectStyledSegments } from "../reconciler/nodes.js";
+import { getInheritedTextStyle, collectTextContent, collectStyledSegments, pendingStaleRects } from "../reconciler/nodes.js";
 import type { Cell } from "./framebuffer.js";
 import { Framebuffer } from "./framebuffer.js";
 import { getBorderChars } from "./borders.js";
@@ -54,6 +54,8 @@ export function paintTree(
 
   if (full) {
     fb.clear();
+    // Full redraw covers everything — no need for stale rect clearing
+    pendingStaleRects.length = 0;
   }
 
   const result: PaintResult = {};
@@ -86,6 +88,26 @@ export function paintTree(
   // pre-clear wipes it.  Two passes fix this: clear ALL stale rects first,
   // then paint ALL nodes — the paint pass always has the final say.
   const tPaint0 = performance.now();
+
+  // ── Pass 0: Clear areas of removed nodes ──
+  // Nodes removed via removeChild are no longer in the tree, so they won't
+  // appear in the entries list.  For absolute-positioned overlays (Select
+  // dropdowns, tooltips, dialogs) the removed area falls OUTSIDE the
+  // parent's layout rect, so marking the parent dirty alone won't clear it.
+  // Drain the pending list and erase those screen areas now.
+  if (!full && pendingStaleRects.length > 0) {
+    for (const rect of pendingStaleRects) {
+      for (let row = rect.y; row < rect.y + rect.height; row++) {
+        if (row < 0 || row >= fb.height) continue;
+        for (let col = rect.x; col < rect.x + rect.width; col++) {
+          if (col < 0 || col >= fb.width) continue;
+          fb.setChar(col, row, " ");
+          preClearCells++;
+        }
+      }
+    }
+    pendingStaleRects.length = 0;
+  }
 
   // ── Pass 1: Pre-clear stale pixels ──
   if (!full) {
