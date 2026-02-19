@@ -279,13 +279,16 @@ export function yogaInsertBefore(
   if (!parent.yogaNode || !child.yogaNode || !beforeChild.yogaNode) return;
   if (parent.type === "text" || parent.type === "input") return;
   yogaDetach(child);
-  const count = parent.yogaNode.getChildCount();
-  let idx = count;
-  for (let i = 0; i < count; i++) {
-    if (parent.yogaNode.getChild(i) === beforeChild.yogaNode) {
-      idx = i;
-      break;
-    }
+
+  // NOTE: We cannot use `parent.yogaNode.getChild(i) === beforeChild.yogaNode`
+  // because yoga-layout's WASM bindings return a *new* JS wrapper object on
+  // every getChild() call, so `===` always fails.  Instead, derive the
+  // correct Yoga index from the GlyphNode children array — which has already
+  // been updated to the correct order by the caller (insertBefore in nodes.ts).
+  let idx = 0;
+  for (const sibling of parent.children) {
+    if (sibling === child) break; // child's position = the target index
+    if (sibling.yogaNode) idx++;
   }
   parent.yogaNode.insertChild(child.yogaNode, idx);
 }

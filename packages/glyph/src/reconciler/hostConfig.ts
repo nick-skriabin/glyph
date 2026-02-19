@@ -235,17 +235,15 @@ export const hostConfig = {
     } else {
       container.children.push(node);
     }
-    // Sync Yoga tree
+    // Sync Yoga tree — derive index from container.children order
+    // (yoga getChild() returns new wrapper objects, so === comparison fails)
     if (container.yogaNode && node.yogaNode && before.yogaNode) {
       const prev = node.yogaNode.getParent();
       if (prev) prev.removeChild(node.yogaNode);
-      const count = container.yogaNode.getChildCount();
-      let yogaIdx = count;
-      for (let i = 0; i < count; i++) {
-        if (container.yogaNode.getChild(i) === before.yogaNode) {
-          yogaIdx = i;
-          break;
-        }
+      let yogaIdx = 0;
+      for (const sibling of container.children) {
+        if (sibling === node) break;
+        if (sibling.yogaNode) yogaIdx++;
       }
       container.yogaNode.insertChild(node.yogaNode, yogaIdx);
     }
