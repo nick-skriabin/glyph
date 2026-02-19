@@ -55,7 +55,7 @@ export type { StatusBarProps, StatusBarMessage, StatusBarContextValue, MessageTy
 export { DebugOverlay } from "./components/DebugOverlay.js";
 export type { DebugOverlayProps } from "./components/DebugOverlay.js";
 export { Table, TableRow, TableCell } from "./components/Table.js";
-export type { TableProps, TableRowProps, TableCellProps } from "./components/Table.js";
+export type { TableProps, TableRowProps, TableCellProps, TableVariant } from "./components/Table.js";
 
 // Hooks
 export { useInput } from "./hooks/useInput.js";

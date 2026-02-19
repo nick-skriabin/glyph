@@ -134,6 +134,64 @@ function App() {
         </Table>
       </Box>
 
+      {/* ── Clean variant ── */}
+      <Box style={{ flexDirection: "column", gap: 1 }}>
+        <Text style={{ color: "white", bold: true }}>Clean (header separator only):</Text>
+        <Table variant="clean" borderColor="white">
+          <TableRow>
+            <TableCell style={{ bold: true }}>Name</TableCell>
+            <TableCell style={{ bold: true }}>Role</TableCell>
+            <TableCell style={{ bold: true }}>Status</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>Alice</TableCell>
+            <TableCell>Engineer</TableCell>
+            <TableCell style={{ color: "green" }}>Active</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>Bob</TableCell>
+            <TableCell>Designer</TableCell>
+            <TableCell style={{ color: "green" }}>Active</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>Charlie</TableCell>
+            <TableCell>PM</TableCell>
+            <TableCell style={{ color: "red" }}>Away</TableCell>
+          </TableRow>
+        </Table>
+      </Box>
+
+      {/* ── Clean-vertical variant ── */}
+      <Box style={{ flexDirection: "column", gap: 1 }}>
+        <Text style={{ color: "blueBright", bold: true }}>Clean-vertical (header + column dividers):</Text>
+        <Table variant="clean-vertical" wrap borderColor="blueBright">
+          <TableRow>
+            <TableCell style={{ bold: true }}>PID</TableCell>
+            <TableCell style={{ bold: true }}>Command</TableCell>
+            <TableCell style={{ bold: true }}>CPU</TableCell>
+            <TableCell style={{ bold: true }}>Memory</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>1234</TableCell>
+            <TableCell>node</TableCell>
+            <TableCell>12.3%</TableCell>
+            <TableCell>256 MB</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>5678</TableCell>
+            <TableCell>bun</TableCell>
+            <TableCell>3.1%</TableCell>
+            <TableCell>128 MB</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>9012</TableCell>
+            <TableCell>postgres</TableCell>
+            <TableCell>0.5%</TableCell>
+            <TableCell>512 MB</TableCell>
+          </TableRow>
+        </Table>
+      </Box>
+
       <Text style={{ dim: true }}>Press 'q' to quit • ↑/↓ to scroll</Text>
     </Box>
     </ScrollView>

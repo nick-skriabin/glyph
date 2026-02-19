@@ -42,6 +42,21 @@ const TABLE_BORDERS: Record<Exclude<BorderStyle, "none">, TableBorderChars> = {
   },
 };
 
+// ── Variant type ─────────────────────────────────────────────────
+
+/**
+ * Controls which grid lines are drawn.
+ *
+ * | Variant | Surrounding border | Header separator | Row separators | Column separators |
+ * |---|---|---|---|---|
+ * | `"full"` | ✓ | ✓ | ✓ | ✓ |
+ * | `"clean"` | ✗ | ✓ | ✗ | ✗ |
+ * | `"clean-vertical"` | ✗ | ✓ | ✗ | ✓ |
+ *
+ * @category Components
+ */
+export type TableVariant = "full" | "clean" | "clean-vertical";
+
 // ── Context ──────────────────────────────────────────────────────
 
 interface TableContextValue {
@@ -49,6 +64,8 @@ interface TableContextValue {
   borderColor?: Color;
   /** Per-column content widths (including padding). `null` when `wrap` is off. */
   columnWidths: number[] | null;
+  /** Layout variant controlling which grid lines are drawn. */
+  variant: TableVariant;
 }
 
 const TableContext = createContext<TableContextValue | null>(null);
@@ -104,10 +121,11 @@ const HORIZ_FILL = 300;
 type SepPosition = "top" | "middle" | "bottom";
 
 /**
- * Renders a horizontal grid line: `┌──┬──┐` / `├──┼──┤` / `└──┴──┘`
+ * Renders a horizontal grid line.
  *
- * Each `─` fill segment uses `flexGrow: 1` so it automatically matches
- * the corresponding cell width in the content row.
+ * In `"full"` mode: `┌──┬──┐` / `├──┼──┤` / `└──┴──┘`
+ * In `"clean"` mode: `──────────` (no corners or junctions)
+ * In `"clean-vertical"` mode: `──────┼──────` (junctions but no corners)
  */
 function HorizontalRule({
   position,
@@ -115,47 +133,51 @@ function HorizontalRule({
   chars,
   borderColor,
   columnWidths,
+  variant = "full",
 }: {
   position: SepPosition;
   colCount: number;
   chars: TableBorderChars;
   borderColor?: Color;
   columnWidths: number[] | null;
+  variant?: TableVariant;
 }): ReactElement {
-  const left =
-    position === "top" ? chars.topLeft
-    : position === "bottom" ? chars.bottomLeft
-    : chars.teeRight;
-  const right =
-    position === "top" ? chars.topRight
-    : position === "bottom" ? chars.bottomRight
-    : chars.teeLeft;
-  const junction =
-    position === "top" ? chars.teeDown
-    : position === "bottom" ? chars.teeUp
-    : chars.cross;
-
   const cs: Style | undefined = borderColor ? { color: borderColor } : undefined;
   const fillStyle: Style = { wrap: "truncate" as const, ...cs };
 
   const items: ReactNode[] = [];
 
-  // Left corner
-  items.push(
-    React.createElement("text" as any, { key: "l", style: cs }, left),
-  );
+  // Left corner (full variant only)
+  if (variant === "full") {
+    const left =
+      position === "top" ? chars.topLeft
+      : position === "bottom" ? chars.bottomLeft
+      : chars.teeRight;
+    items.push(
+      React.createElement("text" as any, { key: "l", style: cs }, left),
+    );
+  }
 
   for (let i = 0; i < colCount; i++) {
     // Junction between columns
     if (i > 0) {
-      items.push(
-        React.createElement("text" as any, { key: `j${i}`, style: cs }, junction),
-      );
+      if (variant === "full") {
+        const junction =
+          position === "top" ? chars.teeDown
+          : position === "bottom" ? chars.teeUp
+          : chars.cross;
+        items.push(
+          React.createElement("text" as any, { key: `j${i}`, style: cs }, junction),
+        );
+      } else if (variant === "clean-vertical") {
+        items.push(
+          React.createElement("text" as any, { key: `j${i}`, style: cs }, chars.cross),
+        );
+      }
+      // "clean" variant: no junction — fills are adjacent for a continuous line
     }
+
     // Horizontal fill ─────
-    // When wrap is on (columnWidths != null), each fill gets an exact
-    // width matching the measured content.  Otherwise flexBasis:0 +
-    // flexGrow:1 distributes space equally across all columns.
     const fillBoxStyle: Style = columnWidths
       ? { width: columnWidths[i] }
       : { flexGrow: 1, flexBasis: 0 };
@@ -172,10 +194,16 @@ function HorizontalRule({
     );
   }
 
-  // Right corner
-  items.push(
-    React.createElement("text" as any, { key: "r", style: cs }, right),
-  );
+  // Right corner (full variant only)
+  if (variant === "full") {
+    const right =
+      position === "top" ? chars.topRight
+      : position === "bottom" ? chars.bottomRight
+      : chars.teeLeft;
+    items.push(
+      React.createElement("text" as any, { key: "r", style: cs }, right),
+    );
+  }
 
   return React.createElement(
     "box" as any,
@@ -194,6 +222,20 @@ export interface TableProps {
   border?: BorderStyle;
   /** Border / grid-line color. */
   borderColor?: Color;
+  /**
+   * Layout variant controlling which grid lines are drawn.
+   *
+   * - `"full"` — all borders: surrounding border, row separators, and
+   *   column separators (default).
+   * - `"clean"` — only a horizontal rule separating the header (first
+   *   row) from the rest. No surrounding border, no column borders.
+   * - `"clean-vertical"` — same as `"clean"` plus vertical borders
+   *   between columns. No surrounding border, no horizontal borders
+   *   between data rows.
+   *
+   * @default "full"
+   */
+  variant?: TableVariant;
   /**
    * When `true`, each column shrinks to the width of its widest cell
    * content instead of distributing space equally.
@@ -229,11 +271,15 @@ export interface TableProps {
  *
  * @example
  * ```tsx
- * // Double-border style
- * <Table border="double">
+ * // Clean variant — header separator only
+ * <Table variant="clean" borderColor="gray">
  *   <TableRow>
- *     <TableCell>╔══╗</TableCell>
- *     <TableCell>Fancy</TableCell>
+ *     <TableCell style={{ bold: true }}>Name</TableCell>
+ *     <TableCell style={{ bold: true }}>Score</TableCell>
+ *   </TableRow>
+ *   <TableRow>
+ *     <TableCell>Alice</TableCell>
+ *     <TableCell>98</TableCell>
  *   </TableRow>
  * </Table>
  * ```
@@ -244,6 +290,7 @@ export function Table({
   style,
   border = "single",
   borderColor,
+  variant = "full",
   wrap = false,
 }: TableProps): ReactElement {
   const bs: Exclude<BorderStyle, "none"> = border === "none" ? "single" : border;
@@ -254,7 +301,7 @@ export function Table({
   ) as ReactElement[];
 
   const columnWidths = wrap ? measureColumnWidths(rows) : null;
-  const ctx: TableContextValue = { chars, borderColor, columnWidths };
+  const ctx: TableContextValue = { chars, borderColor, columnWidths, variant };
 
   const content: ReactNode[] = [];
   for (let i = 0; i < rows.length; i++) {
@@ -316,33 +363,33 @@ export function TableRow(props: TableRowProps): ReactElement {
     throw new Error("TableRow must be rendered inside a <Table>.");
   }
 
-  const { chars, borderColor } = ctx;
+  const { chars, borderColor, variant } = ctx;
   const cells = React.Children.toArray(children).filter(React.isValidElement);
   const colCount = cells.length;
 
   const colorStyle: Style | undefined = borderColor ? { color: borderColor } : undefined;
+  const isClean = variant === "clean" || variant === "clean-vertical";
+  const showInnerVertical = variant === "full" || variant === "clean-vertical";
+  const showOuterVertical = variant === "full";
 
-  // ── Build content row with vertical separators ──
-  // Uses bare text elements for │ — exactly mirroring the structure of
-  // HorizontalRule (bare text for corners/junctions, flexGrow:1 boxes
-  // for fills). This keeps column widths perfectly aligned.
+  // ── Build content row ──
   const contentItems: ReactNode[] = [];
 
-  // Left border │
-  contentItems.push(
-    React.createElement("text" as any, { key: "vl", style: colorStyle }, chars.vertical),
-  );
+  // Left border │ (full only)
+  if (showOuterVertical) {
+    contentItems.push(
+      React.createElement("text" as any, { key: "vl", style: colorStyle }, chars.vertical),
+    );
+  }
 
   for (let i = 0; i < cells.length; i++) {
     // Vertical separator │ between cells
-    if (i > 0) {
+    if (i > 0 && showInnerVertical) {
       contentItems.push(
         React.createElement("text" as any, { key: `vs${i}`, style: colorStyle }, chars.vertical),
       );
     }
-    // Cell wrapper — when wrap is on, each cell gets an exact width
-    // matching the measured content.  Otherwise flexBasis:0 + flexGrow:1
-    // gives every column an equal share of the remaining space.
+    // Cell wrapper
     const cellBoxStyle: Style = ctx.columnWidths
       ? { width: ctx.columnWidths[i] }
       : { flexGrow: 1, flexBasis: 0 };
@@ -355,10 +402,12 @@ export function TableRow(props: TableRowProps): ReactElement {
     );
   }
 
-  // Right border │
-  contentItems.push(
-    React.createElement("text" as any, { key: "vr", style: colorStyle }, chars.vertical),
-  );
+  // Right border │ (full only)
+  if (showOuterVertical) {
+    contentItems.push(
+      React.createElement("text" as any, { key: "vr", style: colorStyle }, chars.vertical),
+    );
+  }
 
   const contentRow = React.createElement(
     "box" as any,
@@ -366,30 +415,53 @@ export function TableRow(props: TableRowProps): ReactElement {
     ...contentItems,
   );
 
-  // ── Assemble: top separator + content row + (bottom separator if last) ──
-  const parts: ReactNode[] = [
-    React.createElement(HorizontalRule, {
-      key: "top",
-      position: isFirst ? "top" : "middle",
-      colCount,
-      chars,
-      borderColor,
-      columnWidths: ctx.columnWidths,
-    }),
-    contentRow,
-  ];
+  // ── Assemble row parts ──
+  const parts: ReactNode[] = [];
 
-  if (isLast) {
+  if (isClean) {
+    // Clean variants: content first, then header separator after the
+    // first row only (no surrounding border, no row separators).
+    parts.push(contentRow);
+    if (isFirst && !isLast) {
+      parts.push(
+        React.createElement(HorizontalRule, {
+          key: "header-sep",
+          position: "middle",
+          colCount,
+          chars,
+          borderColor,
+          columnWidths: ctx.columnWidths,
+          variant,
+        }),
+      );
+    }
+  } else {
+    // Full variant: top HR + content + (bottom HR if last)
     parts.push(
       React.createElement(HorizontalRule, {
-        key: "bottom",
-        position: "bottom",
+        key: "top",
+        position: isFirst ? "top" : "middle",
         colCount,
         chars,
         borderColor,
         columnWidths: ctx.columnWidths,
+        variant,
       }),
     );
+    parts.push(contentRow);
+    if (isLast) {
+      parts.push(
+        React.createElement(HorizontalRule, {
+          key: "bottom",
+          position: "bottom",
+          colCount,
+          chars,
+          borderColor,
+          columnWidths: ctx.columnWidths,
+          variant,
+        }),
+      );
+    }
   }
 
   return React.createElement(React.Fragment, null, ...parts);
