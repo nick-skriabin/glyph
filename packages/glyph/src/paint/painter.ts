@@ -222,6 +222,14 @@ export function paintTree(
   return result;
 }
 
+/** Walk a subtree and return true as soon as any node has _paintDirty set. */
+function hasAnyDirtyDescendant(node: GlyphNode): boolean {
+  for (const child of node.children) {
+    if (child._paintDirty || hasAnyDirtyDescendant(child)) return true;
+  }
+  return false;
+}
+
 function collectPaintEntries(
   node: GlyphNode,
   parentClip: ClipRect,
@@ -251,15 +259,12 @@ function collectPaintEntries(
   let dirty = node._paintDirty || ancestorDirty;
 
   // Clip containers (e.g. ScrollView) must repaint their viewport fill
-  // whenever children scroll in/out — otherwise old content ghosts remain.
-  // Check if any direct child is dirty and propagate up to the clip parent.
+  // whenever ANY descendant changes — the clip fill wipes the entire
+  // viewport, so all children need repainting via ancestorDirty.
+  // Check the full subtree, not just direct children, because dirty
+  // text nodes can be deeply nested (e.g. Text inside Box inside ScrollView).
   if (!dirty && node.resolvedStyle.clip) {
-    for (const child of node.children) {
-      if (child._paintDirty) {
-        dirty = true;
-        break;
-      }
-    }
+    dirty = hasAnyDirtyDescendant(node);
   }
 
   // Clip rect for THIS node's own painting (bg, border, text).
