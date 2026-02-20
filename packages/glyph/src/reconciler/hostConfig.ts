@@ -353,6 +353,10 @@ export const hostConfig = {
     if (newProps.focusable && !instance.focusId) {
       instance.focusId = `focus-${Math.random().toString(36).slice(2, 9)}`;
     }
+    // Clear focusId when focusable is removed (inputs are always focusable)
+    if (!newProps.focusable && instance.focusId && instance.type !== "input") {
+      instance.focusId = null;
+    }
   },
 
   hideInstance(instance: GlyphNode): void {

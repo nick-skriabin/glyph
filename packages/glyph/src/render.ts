@@ -183,17 +183,21 @@ export function render(
 
     /**
      * Walk the node tree depth-first (like DOM order) and collect
-     * registered focusable IDs.  This replaces the old layout-based
-     * sort and gives the same tab-order semantics as the web.
+     * ALL focusable nodes — any node with a non-null `focusId`.
+     *
+     * This means any element with `focusable` (Box, Text, Image, etc.)
+     * automatically participates in focus navigation without needing
+     * an explicit `register()` call.  Hidden subtrees are skipped.
      *
      * `container` is defined later in this closure but will always be
      * initialised by the time any focus function is actually called.
      */
-    function getTreeOrderFocusIds(): string[] {
-      const result: string[] = [];
+    function getTreeOrderFocusables(): Array<{ id: string; node: GlyphNode }> {
+      const result: Array<{ id: string; node: GlyphNode }> = [];
       function walk(node: GlyphNode): void {
-        if (node.focusId && focusRegistry.has(node.focusId)) {
-          result.push(node.focusId);
+        if (node.hidden) return; // Skip hidden subtrees
+        if (node.focusId) {
+          result.push({ id: node.focusId, node });
         }
         for (const child of node.children) {
           walk(child);
@@ -203,6 +207,10 @@ export function render(
         walk(root);
       }
       return result;
+    }
+
+    function getTreeOrderFocusIds(): string[] {
+      return getTreeOrderFocusables().map(({ id }) => id);
     }
 
     function getActiveFocusableIds(): string[] {
@@ -319,29 +327,15 @@ export function render(
         };
       },
       getRegisteredElements() {
-        // Return all non-skippable registered elements in tree order
-        const result: { id: string; node: GlyphNode }[] = [];
-        for (const id of getTreeOrderFocusIds()) {
-          if (skippableIds.has(id)) continue;
-          const node = focusRegistry.get(id);
-          if (node) {
-            result.push({ id, node });
-          }
-        }
-        return result;
+        // Return all non-skippable focusable elements in tree order.
+        // Uses tree walk — no explicit register() needed.
+        return getTreeOrderFocusables().filter(({ id }) => !skippableIds.has(id));
       },
       getActiveElements() {
-        // Return elements in the current trap scope (or all if no trap)
-        const activeIds = getActiveFocusableIds();
-        const result: { id: string; node: GlyphNode }[] = [];
-        for (const id of activeIds) {
-          if (skippableIds.has(id)) continue;
-          const node = focusRegistry.get(id);
-          if (node) {
-            result.push({ id, node });
-          }
-        }
-        return result;
+        // Return focusable elements in the current trap scope (or all if no trap),
+        // excluding skippable (disabled) ones.
+        const activeSet = new Set(getActiveFocusableIds());
+        return getTreeOrderFocusables().filter(({ id }) => activeSet.has(id));
       },
     };
 
