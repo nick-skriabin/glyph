@@ -14,6 +14,7 @@ export interface AnsiStyle {
   dim?: boolean;
   italic?: boolean;
   underline?: boolean;
+  strikethrough?: boolean;
 }
 
 export interface StyledSegment {
@@ -76,6 +77,7 @@ function applySgrParams(params: number[], style: AnsiStyle): void {
         style.dim = false;
         style.italic = false;
         style.underline = false;
+        style.strikethrough = false;
         break;
       case 1: // Bold
         style.bold = true;
@@ -89,6 +91,9 @@ function applySgrParams(params: number[], style: AnsiStyle): void {
       case 4: // Underline
         style.underline = true;
         break;
+      case 9: // Strikethrough
+        style.strikethrough = true;
+        break;
       case 22: // Neither bold nor dim
         style.bold = false;
         style.dim = false;
@@ -98,6 +103,9 @@ function applySgrParams(params: number[], style: AnsiStyle): void {
         break;
       case 24: // Not underline
         style.underline = false;
+        break;
+      case 29: // Not strikethrough
+        style.strikethrough = false;
         break;
       case 39: // Default foreground
         style.fg = undefined;

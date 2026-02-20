@@ -48,6 +48,7 @@ function buildSGR(cell: Cell): string {
   if (cell.dim) seq += `${CSI}2m`;
   if (cell.italic) seq += `${CSI}3m`;
   if (cell.underline) seq += `${CSI}4m`;
+  if (cell.strikethrough) seq += `${CSI}9m`;
   if (cell.fg != null) seq += colorToFg(cell.fg);
   if (cell.bg != null) seq += colorToBg(cell.bg);
   return seq;

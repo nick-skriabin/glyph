@@ -410,6 +410,7 @@ export function getInheritedTextStyle(node: GlyphNode): {
   dim?: boolean;
   italic?: boolean;
   underline?: boolean;
+  strikethrough?: boolean;
 } {
   const result: {
     color?: Color;
@@ -418,6 +419,7 @@ export function getInheritedTextStyle(node: GlyphNode): {
     dim?: boolean;
     italic?: boolean;
     underline?: boolean;
+    strikethrough?: boolean;
   } = {};
 
   let current: GlyphNode | null = node;
@@ -429,6 +431,7 @@ export function getInheritedTextStyle(node: GlyphNode): {
     if (result.dim === undefined && s.dim !== undefined) result.dim = s.dim;
     if (result.italic === undefined && s.italic !== undefined) result.italic = s.italic;
     if (result.underline === undefined && s.underline !== undefined) result.underline = s.underline;
+    if (result.strikethrough === undefined && s.strikethrough !== undefined) result.strikethrough = s.strikethrough;
     current = current.parent;
   }
 
@@ -458,6 +461,7 @@ export interface TextStyleProps {
   dim?: boolean;
   italic?: boolean;
   underline?: boolean;
+  strikethrough?: boolean;
 }
 
 /** A segment of text with its accumulated style from nested Text components */
@@ -481,6 +485,7 @@ export function collectStyledSegments(
     dim: node.resolvedStyle.dim ?? inheritedStyle.dim,
     italic: node.resolvedStyle.italic ?? inheritedStyle.italic,
     underline: node.resolvedStyle.underline ?? inheritedStyle.underline,
+    strikethrough: node.resolvedStyle.strikethrough ?? inheritedStyle.strikethrough,
   };
   
   // If no allChildren, use text directly

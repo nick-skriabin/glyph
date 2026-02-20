@@ -211,6 +211,8 @@ export interface Style {
   italic?: Responsive<boolean>;
   /** Render text with underline. */
   underline?: Responsive<boolean>;
+  /** Render text with strikethrough (ANSI SGR 9). Supported by most modern terminals. */
+  strikethrough?: Responsive<boolean>;
   /** Text wrapping mode. */
   wrap?: Responsive<WrapMode>;
   /** Horizontal text alignment within the container. */

@@ -426,15 +426,16 @@ function setClipped(
   dim?: boolean,
   italic?: boolean,
   underline?: boolean,
+  strikethrough?: boolean,
 ): void {
   if (isInClip(x, y, clip)) {
-    fb.setChar(x, y, ch, fg, bg, bold, dim, italic, underline);
+    fb.setChar(x, y, ch, fg, bg, bold, dim, italic, underline, strikethrough);
     // Wide characters (CJK, supplementary-plane emoji) occupy 2 terminal
     // cells.  Mark the trailing cell as a continuation so the diff engine
     // doesn't overwrite the right half of the glyph.
     const w = ttyCharWidth(ch);
     if (w === 2 && isInClip(x + 1, y, clip)) {
-      fb.setChar(x + 1, y, "", fg, bg, bold, dim, italic, underline);
+      fb.setChar(x + 1, y, "", fg, bg, bold, dim, italic, underline, strikethrough);
     }
   }
 }
@@ -466,6 +467,7 @@ interface CachedChar {
   dim: boolean | undefined;
   italic: boolean | undefined;
   underline: boolean | undefined;
+  strikethrough: boolean | undefined;
 }
 
 interface CachedTextLine {
@@ -484,6 +486,7 @@ interface TextRasterCache {
   iDim: boolean | undefined;
   iItalic: boolean | undefined;
   iUnderline: boolean | undefined;
+  iStrikethrough: boolean | undefined;
   // ── Cached result ──
   lines: CachedTextLine[];
   textAlign: string;
@@ -505,7 +508,8 @@ function textCacheValid(
     cache.iBold === inherited.bold &&
     cache.iDim === inherited.dim &&
     cache.iItalic === inherited.italic &&
-    cache.iUnderline === inherited.underline
+    cache.iUnderline === inherited.underline &&
+    cache.iStrikethrough === inherited.strikethrough
   );
 }
 
@@ -534,7 +538,7 @@ function paintFromCache(
           fb, clip,
           innerX + offsetX + col, innerY + lineIdx,
           cc.char,
-          cc.fg, cc.bg, cc.bold, cc.dim, cc.italic, cc.underline,
+          cc.fg, cc.bg, cc.bold, cc.dim, cc.italic, cc.underline, cc.strikethrough,
         );
       }
       col += cc.charWidth;
@@ -589,6 +593,7 @@ function paintText(node: GlyphNode, fb: Framebuffer, clip: ClipRect, inherited: 
             dim: ansiSeg.style.dim ?? segment.style.dim,
             italic: ansiSeg.style.italic ?? segment.style.italic,
             underline: ansiSeg.style.underline ?? segment.style.underline,
+            strikethrough: ansiSeg.style.strikethrough ?? segment.style.strikethrough,
           };
           styledChars.push({ char, style: mergedStyle });
         }
@@ -648,6 +653,7 @@ function paintText(node: GlyphNode, fb: Framebuffer, clip: ClipRect, inherited: 
         fg, bg: style.bg,
         bold: style.bold, dim: style.dim,
         italic: style.italic, underline: style.underline,
+        strikethrough: style.strikethrough,
       });
       visibleWidth += charWidth;
     }
@@ -669,7 +675,7 @@ function paintText(node: GlyphNode, fb: Framebuffer, clip: ClipRect, inherited: 
           fb, clip,
           innerX + offsetX + col, innerY + lineIdx,
           cc.char,
-          cc.fg, cc.bg, cc.bold, cc.dim, cc.italic, cc.underline,
+          cc.fg, cc.bg, cc.bold, cc.dim, cc.italic, cc.underline, cc.strikethrough,
         );
       }
       col += cc.charWidth;
@@ -688,6 +694,7 @@ function paintText(node: GlyphNode, fb: Framebuffer, clip: ClipRect, inherited: 
       iDim: inherited.dim,
       iItalic: inherited.italic,
       iUnderline: inherited.underline,
+      iStrikethrough: inherited.strikethrough,
       lines: cachedLines,
       textAlign,
     } satisfies TextRasterCache;
@@ -796,7 +803,7 @@ function paintInput(
             innerX + col, innerY + rowIdx,
             char,
             textFg, inherited.bg,
-            inherited.bold, textDim, inherited.italic, inherited.underline,
+            inherited.bold, textDim, inherited.italic, inherited.underline, inherited.strikethrough,
           );
         }
         col += charWidth;
@@ -844,7 +851,7 @@ function paintInput(
           innerX + col, innerY,
           char,
           textFg, inherited.bg,
-          inherited.bold, textDim, inherited.italic, inherited.underline,
+          inherited.bold, textDim, inherited.italic, inherited.underline, inherited.strikethrough,
         );
       }
       col += charWidth;
