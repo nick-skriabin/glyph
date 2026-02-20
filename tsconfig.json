@@ -2,7 +2,9 @@
   "files": [],
   "references": [
     { "path": "packages/glyph" },
+    { "path": "packages/glyph-markdown" },
     { "path": "examples/basic-layout" },
-    { "path": "examples/modal-input" }
+    { "path": "examples/modal-input" },
+    { "path": "examples/markdown-demo" }
   ]
 }

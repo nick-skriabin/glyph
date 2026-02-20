@@ -1,0 +1,55 @@
+{
+  "name": "@semos-labs/glyph-markdown",
+  "version": "0.1.0",
+  "description": "Markdown renderer for Glyph terminal UI framework with syntax highlighting",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "unified": "^11.0.5",
+    "remark-parse": "^11.0.0",
+    "remark-gfm": "^4.0.1",
+    "shiki": "^3.0.0"
+  },
+  "peerDependencies": {
+    "@semos-labs/glyph": ">=0.2.0",
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@semos-labs/glyph": "workspace:*",
+    "@types/mdast": "^4",
+    "@types/react": "^19",
+    "react": "^19.0.0",
+    "tsup": "^8",
+    "typescript": "^5.5"
+  },
+  "keywords": [
+    "glyph",
+    "terminal",
+    "markdown",
+    "tui",
+    "syntax-highlighting",
+    "react"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/semos-labs/glyph.git",
+    "directory": "packages/glyph-markdown"
+  }
+}

@@ -9,6 +9,7 @@ export interface Cell {
   dim?: boolean;
   italic?: boolean;
   underline?: boolean;
+  strikethrough?: boolean;
 }
 
 export class Framebuffer {
@@ -26,7 +27,7 @@ export class Framebuffer {
   private static allocCells(count: number): Cell[] {
     const cells = new Array<Cell>(count);
     for (let i = 0; i < count; i++) {
-      cells[i] = { ch: " ", fg: undefined, bg: undefined, bold: false, dim: false, italic: false, underline: false };
+      cells[i] = { ch: " ", fg: undefined, bg: undefined, bold: false, dim: false, italic: false, underline: false, strikethrough: false };
     }
     return cells;
   }
@@ -42,6 +43,7 @@ export class Framebuffer {
       c.dim = false;
       c.italic = false;
       c.underline = false;
+      c.strikethrough = false;
     }
   }
 
@@ -71,6 +73,7 @@ export class Framebuffer {
     c.dim = cell.dim ?? false;
     c.italic = cell.italic ?? false;
     c.underline = cell.underline ?? false;
+    c.strikethrough = cell.strikethrough ?? false;
   }
 
   setChar(
@@ -83,6 +86,7 @@ export class Framebuffer {
     dim?: boolean,
     italic?: boolean,
     underline?: boolean,
+    strikethrough?: boolean,
   ): void {
     if (x < 0 || x >= this.width || y < 0 || y >= this.height) return;
     const c = this.cells[y * this.width + x]!;
@@ -93,6 +97,7 @@ export class Framebuffer {
     c.dim = dim ?? false;
     c.italic = italic ?? false;
     c.underline = underline ?? false;
+    c.strikethrough = strikethrough ?? false;
   }
 
   fillRect(
@@ -127,6 +132,7 @@ export class Framebuffer {
       d.dim = s.dim;
       d.italic = s.italic;
       d.underline = s.underline;
+      d.strikethrough = s.strikethrough;
     }
   }
 
@@ -144,7 +150,8 @@ export class Framebuffer {
       (a.bold ?? false) === (b.bold ?? false) &&
       (a.dim ?? false) === (b.dim ?? false) &&
       (a.italic ?? false) === (b.italic ?? false) &&
-      (a.underline ?? false) === (b.underline ?? false)
+      (a.underline ?? false) === (b.underline ?? false) &&
+      (a.strikethrough ?? false) === (b.strikethrough ?? false)
     );
   }
 }
