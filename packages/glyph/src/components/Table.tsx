@@ -53,7 +53,7 @@ const TABLE_BORDERS: Record<Exclude<BorderStyle, "none">, TableBorderChars> = {
  * | `"clean"` | ✗ | ✓ | ✗ | ✗ |
  * | `"clean-vertical"` | ✗ | ✓ | ✗ | ✓ |
  *
- * @category Components
+ * @category Tables
  */
 export type TableVariant = "full" | "clean" | "clean-vertical";
 
@@ -283,7 +283,7 @@ export interface TableProps {
  *   </TableRow>
  * </Table>
  * ```
- * @category Components
+ * @category Tables
  */
 export function Table({
   children,
@@ -351,7 +351,7 @@ export interface TableRowProps {
  *   <TableCell>30</TableCell>
  * </TableRow>
  * ```
- * @category Components
+ * @category Tables
  */
 export function TableRow(props: TableRowProps): ReactElement {
   const { children, style } = props;
@@ -491,7 +491,7 @@ export interface TableCellProps {
  * <TableCell>Hello</TableCell>
  * <TableCell style={{ bold: true, color: "cyan" }}>World</TableCell>
  * ```
- * @category Components
+ * @category Tables
  */
 export function TableCell({
   children,
