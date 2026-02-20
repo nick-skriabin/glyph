@@ -57,6 +57,18 @@ const TABLE_BORDERS: Record<Exclude<BorderStyle, "none">, TableBorderChars> = {
  */
 export type TableVariant = "full" | "clean" | "clean-vertical";
 
+/**
+ * Horizontal alignment for cell content.
+ * @category Tables
+ */
+export type CellAlign = "left" | "center" | "right";
+
+/**
+ * Vertical alignment for cell content.
+ * @category Tables
+ */
+export type CellVerticalAlign = "top" | "center" | "bottom";
+
 // ── Context ──────────────────────────────────────────────────────
 
 interface TableContextValue {
@@ -72,7 +84,11 @@ const TableContext = createContext<TableContextValue | null>(null);
 
 // ── Content measurement ─────────────────────────────────────────
 
-/** Recursively sum the text length of React children (single-line approximation). */
+/**
+ * Recursively sum the text length of React children (single-line approximation).
+ * For non-text elements (components like Progress, Spinner, etc.) this returns 0
+ * — use the `minWidth` prop on {@link TableCell} to hint at the expected width.
+ */
 function extractTextLength(node: ReactNode): number {
   if (node == null || typeof node === "boolean") return 0;
   if (typeof node === "string") return node.length;
@@ -87,6 +103,11 @@ function extractTextLength(node: ReactNode): number {
 /**
  * Scan every row to find the maximum content width of each column.
  * Width includes the cell's horizontal padding (defaults to `1` per side).
+ *
+ * When a cell specifies `minWidth`, that value takes priority over the
+ * auto-measured text length. This is essential for cells containing rich
+ * content (e.g. `Progress`, `Spinner`, `Image`) whose width cannot be
+ * determined from text alone.
  */
 function measureColumnWidths(rows: ReactElement[]): number[] {
   const maxWidths: number[] = [];
@@ -105,8 +126,13 @@ function measureColumnWidths(rows: ReactElement[]): number[] {
         typeof s?.paddingRight === "number" ? s.paddingRight
         : typeof s?.paddingX === "number" ? s.paddingX
         : 1;
+      // If the cell declares a minWidth, use it as the content width hint
+      const cellMinWidth = cell.props.minWidth;
       const textLen = extractTextLength(cell.props.children);
-      const total = textLen + padL + padR;
+      const contentWidth = typeof cellMinWidth === "number"
+        ? Math.max(cellMinWidth, textLen)
+        : textLen;
+      const total = contentWidth + padL + padR;
       maxWidths[i] = Math.max(maxWidths[i] ?? 0, total);
     }
   }
@@ -117,6 +143,34 @@ function measureColumnWidths(rows: ReactElement[]): number[] {
 
 /** Enough `─` repetitions to fill any column; truncated by wrap:"truncate". */
 const HORIZ_FILL = 300;
+
+/** Enough `│` repetitions to fill any row height; clipped by the box bounds. */
+const VERT_FILL = 300;
+
+/**
+ * Creates a vertical border element that stretches the full height of its
+ * row.  The outer `box` has no in-flow content so Yoga sizes it at 0
+ * intrinsic height; `alignItems:"stretch"` (the default) makes it match
+ * the row.  The absolute-positioned `text` then fills the box with the
+ * border character, one per line.
+ */
+function verticalBorder(
+  key: string,
+  char: string,
+  colorStyle: Style | undefined,
+): ReactNode {
+  return React.createElement(
+    "box" as any,
+    { key, style: { width: 1 } },
+    React.createElement("text" as any, {
+      style: {
+        ...colorStyle,
+        position: "absolute" as const,
+        inset: 0,
+      },
+    }, char.repeat(VERT_FILL)),
+  );
+}
 
 type SepPosition = "top" | "middle" | "bottom";
 
@@ -253,9 +307,16 @@ export interface TableProps {
  * Bordered table built entirely with flexbox.
  *
  * Renders seamless box-drawing borders around and between every row
- * and cell. Compose with {@link TableRow} and {@link TableCell}.
+ * and cell. Compose with {@link TableRow} (or {@link TableHeaderRow})
+ * and {@link TableCell}.
+ *
+ * Cells support **rich content** — any React element works as cell
+ * children, including `<Progress>`, `<Spinner>`, `<Link>`, `<Box>`
+ * layouts, and `<Text>` with inline styling. Multi-line cells are
+ * fully supported; vertical borders stretch automatically.
  *
  * @example
+ * Basic text table
  * ```tsx
  * <Table border="single" borderColor="cyan">
  *   <TableRow>
@@ -270,16 +331,136 @@ export interface TableProps {
  * ```
  *
  * @example
+ * Clean variant with header row
  * ```tsx
- * // Clean variant — header separator only
  * <Table variant="clean" borderColor="gray">
- *   <TableRow>
- *     <TableCell style={{ bold: true }}>Name</TableCell>
- *     <TableCell style={{ bold: true }}>Score</TableCell>
- *   </TableRow>
+ *   <TableHeaderRow>
+ *     <TableCell>Name</TableCell>
+ *     <TableCell>Score</TableCell>
+ *   </TableHeaderRow>
  *   <TableRow>
  *     <TableCell>Alice</TableCell>
  *     <TableCell>98</TableCell>
+ *   </TableRow>
+ * </Table>
+ * ```
+ *
+ * @example
+ * Status indicators — colored icons with text
+ * ```tsx
+ * <Table border="round" borderColor="cyan">
+ *   <TableHeaderRow>
+ *     <TableCell>Service</TableCell>
+ *     <TableCell>Status</TableCell>
+ *   </TableHeaderRow>
+ *   <TableRow>
+ *     <TableCell>API</TableCell>
+ *     <TableCell>
+ *       <Box style={{ flexDirection: "row", gap: 1 }}>
+ *         <Text style={{ color: "green" }}>●</Text>
+ *         <Text>Healthy</Text>
+ *       </Box>
+ *     </TableCell>
+ *   </TableRow>
+ *   <TableRow>
+ *     <TableCell>Database</TableCell>
+ *     <TableCell>
+ *       <Box style={{ flexDirection: "row", gap: 1 }}>
+ *         <Text style={{ color: "red" }}>●</Text>
+ *         <Text>Down</Text>
+ *       </Box>
+ *     </TableCell>
+ *   </TableRow>
+ * </Table>
+ * ```
+ *
+ * @example
+ * Progress bars in cells — wrap in a flex box so width resolves correctly
+ * ```tsx
+ * <Table borderColor="blue">
+ *   <TableHeaderRow>
+ *     <TableCell>Task</TableCell>
+ *     <TableCell>Progress</TableCell>
+ *   </TableHeaderRow>
+ *   <TableRow>
+ *     <TableCell>Build</TableCell>
+ *     <TableCell>
+ *       <Box style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0 }}>
+ *         <Progress value={0.75} showPercent />
+ *       </Box>
+ *     </TableCell>
+ *   </TableRow>
+ * </Table>
+ * ```
+ *
+ * @example
+ * Multi-line cells — stacked content with vertical borders
+ * ```tsx
+ * <Table border="double" borderColor="green">
+ *   <TableHeaderRow>
+ *     <TableCell>Project</TableCell>
+ *     <TableCell>Details</TableCell>
+ *   </TableHeaderRow>
+ *   <TableRow>
+ *     <TableCell>
+ *       <Box style={{ flexDirection: "column" }}>
+ *         <Text style={{ bold: true }}>glyph-core</Text>
+ *         <Text style={{ dim: true }}>v2.4.1</Text>
+ *       </Box>
+ *     </TableCell>
+ *     <TableCell>
+ *       <Box style={{ flexDirection: "column" }}>
+ *         <Box style={{ flexDirection: "row", gap: 1 }}>
+ *           <Text style={{ color: "green" }}>+142</Text>
+ *           <Text style={{ color: "red" }}>-38</Text>
+ *         </Box>
+ *         <Text style={{ dim: true }}>Last commit: 2h ago</Text>
+ *       </Box>
+ *     </TableCell>
+ *   </TableRow>
+ * </Table>
+ * ```
+ *
+ * @example
+ * Spinners and links
+ * ```tsx
+ * <Table variant="clean-vertical" borderColor="magenta">
+ *   <TableHeaderRow>
+ *     <TableCell>Service</TableCell>
+ *     <TableCell>Activity</TableCell>
+ *     <TableCell>Docs</TableCell>
+ *   </TableHeaderRow>
+ *   <TableRow>
+ *     <TableCell>Auth</TableCell>
+ *     <TableCell>
+ *       <Spinner label="Processing" style={{ color: "green" }} />
+ *     </TableCell>
+ *     <TableCell>
+ *       <Link href="https://docs.example.com/auth">
+ *         <Text style={{ color: "blueBright", underline: true }}>
+ *           docs.example.com
+ *         </Text>
+ *       </Link>
+ *     </TableCell>
+ *   </TableRow>
+ * </Table>
+ * ```
+ *
+ * @example
+ * Cell alignment
+ * ```tsx
+ * <Table borderColor="yellow">
+ *   <TableHeaderRow>
+ *     <TableCell>Left (default)</TableCell>
+ *     <TableCell align="center">Centered</TableCell>
+ *     <TableCell align="right">Right-aligned</TableCell>
+ *   </TableHeaderRow>
+ *   <TableRow>
+ *     <TableCell>Alice</TableCell>
+ *     <TableCell align="center">98</TableCell>
+ *     <TableCell align="right">
+ *       <Text style={{ color: "green" }}>✓ Pass</Text>
+ *     </TableCell>
  *   </TableRow>
  * </Table>
  * ```
@@ -342,13 +523,61 @@ export interface TableRowProps {
  * A single row inside a {@link Table}.
  *
  * Must be a direct child of `<Table>`. Contains one or more
- * {@link TableCell} elements.
+ * {@link TableCell} elements. Cells can hold any React content — when
+ * one cell is taller than others (e.g. multi-line content), vertical
+ * borders stretch to match.
  *
  * @example
+ * Plain text row
  * ```tsx
  * <TableRow>
  *   <TableCell>Alice</TableCell>
  *   <TableCell>30</TableCell>
+ * </TableRow>
+ * ```
+ *
+ * @example
+ * Rich content row — status badge, progress bar, link
+ * ```tsx
+ * <TableRow>
+ *   <TableCell style={{ bold: true }}>API Gateway</TableCell>
+ *   <TableCell>
+ *     <Box style={{ flexDirection: "row", gap: 1 }}>
+ *       <Text style={{ color: "green" }}>●</Text>
+ *       <Text>Healthy</Text>
+ *     </Box>
+ *   </TableCell>
+ *   <TableCell>
+ *     <Box style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0 }}>
+ *       <Progress value={0.42} />
+ *     </Box>
+ *   </TableCell>
+ *   <TableCell>
+ *     <Link href="https://api.example.com" focusable={false}>
+ *       <Text style={{ color: "blueBright", underline: true }}>
+ *         api.example.com
+ *       </Text>
+ *     </Link>
+ *   </TableCell>
+ * </TableRow>
+ * ```
+ *
+ * @example
+ * Multi-line row — stacked content in cells
+ * ```tsx
+ * <TableRow>
+ *   <TableCell>
+ *     <Box style={{ flexDirection: "column" }}>
+ *       <Text style={{ bold: true }}>glyph-core</Text>
+ *       <Text style={{ dim: true, italic: true }}>v2.4.1</Text>
+ *     </Box>
+ *   </TableCell>
+ *   <TableCell>
+ *     <Box style={{ flexDirection: "column" }}>
+ *       <Text>142 changes</Text>
+ *       <Text style={{ dim: true }}>Last commit: 2h ago</Text>
+ *     </Box>
+ *   </TableCell>
  * </TableRow>
  * ```
  * @category Tables
@@ -377,17 +606,13 @@ export function TableRow(props: TableRowProps): ReactElement {
 
   // Left border │ (full only)
   if (showOuterVertical) {
-    contentItems.push(
-      React.createElement("text" as any, { key: "vl", style: colorStyle }, chars.vertical),
-    );
+    contentItems.push(verticalBorder("vl", chars.vertical, colorStyle));
   }
 
   for (let i = 0; i < cells.length; i++) {
     // Vertical separator │ between cells
     if (i > 0 && showInnerVertical) {
-      contentItems.push(
-        React.createElement("text" as any, { key: `vs${i}`, style: colorStyle }, chars.vertical),
-      );
+      contentItems.push(verticalBorder(`vs${i}`, chars.vertical, colorStyle));
     }
     // Cell wrapper
     const cellBoxStyle: Style = ctx.columnWidths
@@ -404,9 +629,7 @@ export function TableRow(props: TableRowProps): ReactElement {
 
   // Right border │ (full only)
   if (showOuterVertical) {
-    contentItems.push(
-      React.createElement("text" as any, { key: "vr", style: colorStyle }, chars.vertical),
-    );
+    contentItems.push(verticalBorder("vr", chars.vertical, colorStyle));
   }
 
   const contentRow = React.createElement(
@@ -475,29 +698,196 @@ export function TableRow(props: TableRowProps): ReactElement {
 export interface TableCellProps {
   /** Style for the cell container. Horizontal padding defaults to `1`. */
   style?: Style;
-  /** Cell content. Strings and numbers are automatically wrapped in a `Text` element. */
+  /**
+   * Cell content — can be plain text, numbers, or **any React element**.
+   *
+   * Strings and numbers are automatically wrapped in a `Text` element.
+   * Rich content (e.g. `<Progress>`, `<Spinner>`, `<Box>` layouts,
+   * `<Link>`, `<Text>` with inline styling) is passed through as-is.
+   *
+   * For `<Progress>` bars, wrap them in a flex box so `width: "100%"`
+   * resolves relative to the wrapper instead of overflowing the cell:
+   *
+   * ```tsx
+   * <TableCell>
+   *   <Box style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0 }}>
+   *     <Progress value={0.7} showPercent />
+   *   </Box>
+   * </TableCell>
+   * ```
+   *
+   * For multi-line cells, use a vertical `<Box>` layout:
+   *
+   * ```tsx
+   * <TableCell>
+   *   <Box style={{ flexDirection: "column" }}>
+   *     <Text style={{ bold: true }}>Title</Text>
+   *     <Text style={{ dim: true }}>Subtitle</Text>
+   *   </Box>
+   * </TableCell>
+   * ```
+   */
   children?: ReactNode;
+  /**
+   * Horizontal alignment of cell content.
+   *
+   * - `"left"` — align to the start (default)
+   * - `"center"` — center content
+   * - `"right"` — align to the end
+   *
+   * @default "left"
+   */
+  align?: CellAlign;
+  /**
+   * Vertical alignment of cell content (useful for multi-line rows).
+   *
+   * - `"top"` — align to the top (default)
+   * - `"center"` — center vertically
+   * - `"bottom"` — align to the bottom
+   *
+   * @default "top"
+   */
+  verticalAlign?: CellVerticalAlign;
+  /**
+   * Minimum content width hint (in columns) for `wrap` mode measurement.
+   *
+   * When a cell contains non-text content (e.g. `<Progress>`, `<Spinner>`,
+   * or complex layouts), the automatic text-length measurement returns `0`.
+   * Set `minWidth` to tell the table how wide the content should be so
+   * column sizing works correctly in `wrap` mode.
+   *
+   * Has no effect when the table's `wrap` prop is `false` (the default).
+   *
+   * @example
+   * ```tsx
+   * <TableCell minWidth={20}>
+   *   <Progress value={0.5} />
+   * </TableCell>
+   * ```
+   */
+  minWidth?: number;
 }
+
+/** @internal Map {@link CellAlign} to flexbox `justifyContent`. */
+const ALIGN_MAP: Record<CellAlign, Style["justifyContent"]> = {
+  left: "flex-start",
+  center: "center",
+  right: "flex-end",
+};
+
+/** @internal Map {@link CellVerticalAlign} to flexbox `alignItems`. */
+const VALIGN_MAP: Record<CellVerticalAlign, Style["alignItems"]> = {
+  top: "flex-start",
+  center: "center",
+  bottom: "flex-end",
+};
 
 /**
  * A single cell inside a {@link TableRow}.
  *
- * Strings and numbers passed as children are automatically wrapped
- * in a `Text` element. Horizontal padding defaults to `1` character
- * on each side (overridable via `style`).
+ * Accepts **any React content** as children — plain strings, numbers, or
+ * rich elements like `<Progress>`, `<Spinner>`, `<Link>`, `<Box>`
+ * layouts, nested `<Text>` with inline styles, and more.
+ *
+ * Strings and numbers are automatically wrapped in a `Text` element.
+ * Horizontal padding defaults to `1` character on each side (overridable
+ * via `style`).
  *
  * @example
+ * Simple text
  * ```tsx
  * <TableCell>Hello</TableCell>
  * <TableCell style={{ bold: true, color: "cyan" }}>World</TableCell>
+ * ```
+ *
+ * @example
+ * Status indicator with colored icon
+ * ```tsx
+ * <TableCell>
+ *   <Box style={{ flexDirection: "row", gap: 1 }}>
+ *     <Text style={{ color: "green" }}>●</Text>
+ *     <Text>Healthy</Text>
+ *   </Box>
+ * </TableCell>
+ * ```
+ *
+ * @example
+ * Progress bar — wrap in a flex box so width resolves correctly
+ * ```tsx
+ * <TableCell>
+ *   <Box style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0 }}>
+ *     <Progress value={0.65} showPercent />
+ *   </Box>
+ * </TableCell>
+ * ```
+ *
+ * @example
+ * Spinner with label
+ * ```tsx
+ * <TableCell>
+ *   <Spinner label="Syncing..." style={{ color: "cyan" }} />
+ * </TableCell>
+ * ```
+ *
+ * @example
+ * Clickable link
+ * ```tsx
+ * <TableCell>
+ *   <Link href="https://docs.example.com" focusable={false}>
+ *     <Text style={{ color: "blueBright", underline: true }}>
+ *       View docs
+ *     </Text>
+ *   </Link>
+ * </TableCell>
+ * ```
+ *
+ * @example
+ * Multi-line stacked content
+ * ```tsx
+ * <TableCell>
+ *   <Box style={{ flexDirection: "column" }}>
+ *     <Text style={{ bold: true }}>glyph-core</Text>
+ *     <Text style={{ dim: true, italic: true }}>v2.4.1</Text>
+ *   </Box>
+ * </TableCell>
+ * ```
+ *
+ * @example
+ * Alignment — centered spinner with vertical centering for tall rows
+ * ```tsx
+ * <TableCell align="center" verticalAlign="center">
+ *   <Spinner label="Loading..." style={{ color: "yellow" }} />
+ * </TableCell>
+ * ```
+ *
+ * @example
+ * Right-aligned numeric value
+ * ```tsx
+ * <TableCell align="right">
+ *   <Text style={{ color: "green", bold: true }}>$1,234.56</Text>
+ * </TableCell>
  * ```
  * @category Tables
  */
 export function TableCell({
   children,
   style,
+  align,
+  verticalAlign,
+  minWidth: _minWidth,
 }: TableCellProps): ReactElement {
-  const merged: Style = { paddingX: 1, ...style };
+  const alignStyle: Style = {};
+  if (align) alignStyle.justifyContent = ALIGN_MAP[align];
+  if (verticalAlign) alignStyle.alignItems = VALIGN_MAP[verticalAlign];
+
+  const merged: Style = {
+    paddingX: 1,
+    flexDirection: "row" as const,
+    flexGrow: 1,
+    flexShrink: 1,
+    ...alignStyle,
+    ...style,
+  };
 
   const content =
     typeof children === "string" || typeof children === "number"
@@ -505,4 +895,65 @@ export function TableCell({
       : children;
 
   return React.createElement("box" as any, { style: merged }, content);
+}
+
+// ── TableHeaderRow ───────────────────────────────────────────────
+
+/**
+ * Props for the {@link TableHeaderRow} component.
+ */
+export interface TableHeaderRowProps {
+  /** Style applied to the header row. Bold text is applied by default. */
+  style?: Style;
+  /** {@link TableCell} children representing column headers. */
+  children?: ReactNode;
+}
+
+/**
+ * Convenience component for table header rows.
+ *
+ * Behaves exactly like {@link TableRow} but applies bold text styling
+ * by default, reducing boilerplate for the common pattern of bolding
+ * every header cell.
+ *
+ * @example
+ * Basic header
+ * ```tsx
+ * <Table borderColor="cyan">
+ *   <TableHeaderRow>
+ *     <TableCell>Name</TableCell>
+ *     <TableCell>Status</TableCell>
+ *     <TableCell>Score</TableCell>
+ *   </TableHeaderRow>
+ *   <TableRow>
+ *     <TableCell>Alice</TableCell>
+ *     <TableCell>Active</TableCell>
+ *     <TableCell>98</TableCell>
+ *   </TableRow>
+ * </Table>
+ * ```
+ *
+ * @example
+ * Colored header with alignment
+ * ```tsx
+ * <Table border="round" borderColor="magenta">
+ *   <TableHeaderRow style={{ color: "magentaBright" }}>
+ *     <TableCell>Service</TableCell>
+ *     <TableCell align="center">Status</TableCell>
+ *     <TableCell align="right">Load</TableCell>
+ *   </TableHeaderRow>
+ *   <TableRow>
+ *     <TableCell>API Gateway</TableCell>
+ *     <TableCell align="center">
+ *       <Text style={{ color: "green" }}>● Healthy</Text>
+ *     </TableCell>
+ *     <TableCell align="right">42%</TableCell>
+ *   </TableRow>
+ * </Table>
+ * ```
+ * @category Tables
+ */
+export function TableHeaderRow(props: TableHeaderRowProps): ReactElement {
+  const headerStyle: Style = { bold: true, ...props.style };
+  return TableRow({ ...props, style: headerStyle });
 }
