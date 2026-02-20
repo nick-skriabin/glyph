@@ -57,6 +57,18 @@ const TABLE_BORDERS: Record<Exclude<BorderStyle, "none">, TableBorderChars> = {
  */
 export type TableVariant = "full" | "clean" | "clean-vertical";
 
+/**
+ * Horizontal alignment for cell content.
+ * @category Tables
+ */
+export type CellAlign = "left" | "center" | "right";
+
+/**
+ * Vertical alignment for cell content.
+ * @category Tables
+ */
+export type CellVerticalAlign = "top" | "center" | "bottom";
+
 // ── Context ──────────────────────────────────────────────────────
 
 interface TableContextValue {
@@ -72,7 +84,11 @@ const TableContext = createContext<TableContextValue | null>(null);
 
 // ── Content measurement ─────────────────────────────────────────
 
-/** Recursively sum the text length of React children (single-line approximation). */
+/**
+ * Recursively sum the text length of React children (single-line approximation).
+ * For non-text elements (components like Progress, Spinner, etc.) this returns 0
+ * — use the `minWidth` prop on {@link TableCell} to hint at the expected width.
+ */
 function extractTextLength(node: ReactNode): number {
   if (node == null || typeof node === "boolean") return 0;
   if (typeof node === "string") return node.length;
@@ -87,6 +103,11 @@ function extractTextLength(node: ReactNode): number {
 /**
  * Scan every row to find the maximum content width of each column.
  * Width includes the cell's horizontal padding (defaults to `1` per side).
+ *
+ * When a cell specifies `minWidth`, that value takes priority over the
+ * auto-measured text length. This is essential for cells containing rich
+ * content (e.g. `Progress`, `Spinner`, `Image`) whose width cannot be
+ * determined from text alone.
  */
 function measureColumnWidths(rows: ReactElement[]): number[] {
   const maxWidths: number[] = [];
@@ -105,8 +126,13 @@ function measureColumnWidths(rows: ReactElement[]): number[] {
         typeof s?.paddingRight === "number" ? s.paddingRight
         : typeof s?.paddingX === "number" ? s.paddingX
         : 1;
+      // If the cell declares a minWidth, use it as the content width hint
+      const cellMinWidth = cell.props.minWidth;
       const textLen = extractTextLength(cell.props.children);
-      const total = textLen + padL + padR;
+      const contentWidth = typeof cellMinWidth === "number"
+        ? Math.max(cellMinWidth, textLen)
+        : textLen;
+      const total = contentWidth + padL + padR;
       maxWidths[i] = Math.max(maxWidths[i] ?? 0, total);
     }
   }
@@ -253,7 +279,12 @@ export interface TableProps {
  * Bordered table built entirely with flexbox.
  *
  * Renders seamless box-drawing borders around and between every row
- * and cell. Compose with {@link TableRow} and {@link TableCell}.
+ * and cell. Compose with {@link TableRow} (or {@link TableHeaderRow})
+ * and {@link TableCell}.
+ *
+ * Cells support **rich content** — any React element works as cell
+ * children, including `<Progress>`, `<Spinner>`, `<Link>`, `<Box>`
+ * layouts, and `<Text>` with inline styling.
  *
  * @example
  * ```tsx
@@ -273,13 +304,37 @@ export interface TableProps {
  * ```tsx
  * // Clean variant — header separator only
  * <Table variant="clean" borderColor="gray">
- *   <TableRow>
- *     <TableCell style={{ bold: true }}>Name</TableCell>
- *     <TableCell style={{ bold: true }}>Score</TableCell>
- *   </TableRow>
+ *   <TableHeaderRow>
+ *     <TableCell>Name</TableCell>
+ *     <TableCell>Score</TableCell>
+ *   </TableHeaderRow>
  *   <TableRow>
  *     <TableCell>Alice</TableCell>
  *     <TableCell>98</TableCell>
+ *   </TableRow>
+ * </Table>
+ * ```
+ *
+ * @example
+ * ```tsx
+ * // Rich content — progress bars, spinners, and status indicators
+ * <Table borderColor="blue">
+ *   <TableHeaderRow>
+ *     <TableCell>Service</TableCell>
+ *     <TableCell>Health</TableCell>
+ *     <TableCell>Load</TableCell>
+ *   </TableHeaderRow>
+ *   <TableRow>
+ *     <TableCell>API Gateway</TableCell>
+ *     <TableCell>
+ *       <Box style={{ flexDirection: "row", gap: 1 }}>
+ *         <Text style={{ color: "green" }}>●</Text>
+ *         <Text>Healthy</Text>
+ *       </Box>
+ *     </TableCell>
+ *     <TableCell minWidth={20}>
+ *       <Progress value={0.42} />
+ *     </TableCell>
  *   </TableRow>
  * </Table>
  * ```
@@ -475,29 +530,144 @@ export function TableRow(props: TableRowProps): ReactElement {
 export interface TableCellProps {
   /** Style for the cell container. Horizontal padding defaults to `1`. */
   style?: Style;
-  /** Cell content. Strings and numbers are automatically wrapped in a `Text` element. */
+  /**
+   * Cell content — can be plain text, numbers, or **any React element**.
+   *
+   * Strings and numbers are automatically wrapped in a `Text` element.
+   * Rich content (e.g. `<Progress>`, `<Spinner>`, `<Box>` layouts,
+   * `<Link>`, `<Text>` with inline styling) is passed through as-is.
+   *
+   * @example
+   * ```tsx
+   * // Plain text
+   * <TableCell>Hello</TableCell>
+   *
+   * // Rich content — progress bar
+   * <TableCell minWidth={20}>
+   *   <Progress value={0.7} showPercent />
+   * </TableCell>
+   *
+   * // Multi-element layout
+   * <TableCell>
+   *   <Box style={{ flexDirection: "row", gap: 1 }}>
+   *     <Text style={{ color: "green" }}>●</Text>
+   *     <Text>Online</Text>
+   *   </Box>
+   * </TableCell>
+   * ```
+   */
   children?: ReactNode;
+  /**
+   * Horizontal alignment of cell content.
+   *
+   * - `"left"` — align to the start (default)
+   * - `"center"` — center content
+   * - `"right"` — align to the end
+   *
+   * @default "left"
+   */
+  align?: CellAlign;
+  /**
+   * Vertical alignment of cell content (useful for multi-line rows).
+   *
+   * - `"top"` — align to the top (default)
+   * - `"center"` — center vertically
+   * - `"bottom"` — align to the bottom
+   *
+   * @default "top"
+   */
+  verticalAlign?: CellVerticalAlign;
+  /**
+   * Minimum content width hint (in columns) for `wrap` mode measurement.
+   *
+   * When a cell contains non-text content (e.g. `<Progress>`, `<Spinner>`,
+   * or complex layouts), the automatic text-length measurement returns `0`.
+   * Set `minWidth` to tell the table how wide the content should be so
+   * column sizing works correctly in `wrap` mode.
+   *
+   * Has no effect when the table's `wrap` prop is `false` (the default).
+   *
+   * @example
+   * ```tsx
+   * <TableCell minWidth={20}>
+   *   <Progress value={0.5} />
+   * </TableCell>
+   * ```
+   */
+  minWidth?: number;
 }
+
+/** @internal Map {@link CellAlign} to flexbox `justifyContent`. */
+const ALIGN_MAP: Record<CellAlign, Style["justifyContent"]> = {
+  left: "flex-start",
+  center: "center",
+  right: "flex-end",
+};
+
+/** @internal Map {@link CellVerticalAlign} to flexbox `alignItems`. */
+const VALIGN_MAP: Record<CellVerticalAlign, Style["alignItems"]> = {
+  top: "flex-start",
+  center: "center",
+  bottom: "flex-end",
+};
 
 /**
  * A single cell inside a {@link TableRow}.
  *
- * Strings and numbers passed as children are automatically wrapped
- * in a `Text` element. Horizontal padding defaults to `1` character
- * on each side (overridable via `style`).
+ * Accepts **any React content** as children — plain strings, numbers, or
+ * rich elements like `<Progress>`, `<Spinner>`, `<Link>`, `<Box>`
+ * layouts, nested `<Text>` with inline styles, and more.
+ *
+ * Strings and numbers are automatically wrapped in a `Text` element.
+ * Horizontal padding defaults to `1` character on each side (overridable
+ * via `style`).
  *
  * @example
  * ```tsx
+ * // Simple text
  * <TableCell>Hello</TableCell>
  * <TableCell style={{ bold: true, color: "cyan" }}>World</TableCell>
+ * ```
+ *
+ * @example
+ * ```tsx
+ * // Rich content with alignment
+ * <TableCell align="center" verticalAlign="center">
+ *   <Spinner label="Loading..." style={{ color: "yellow" }} />
+ * </TableCell>
+ * ```
+ *
+ * @example
+ * ```tsx
+ * // Status indicator with icon
+ * <TableCell>
+ *   <Box style={{ flexDirection: "row", gap: 1 }}>
+ *     <Text style={{ color: "green" }}>●</Text>
+ *     <Text>Healthy</Text>
+ *   </Box>
+ * </TableCell>
  * ```
  * @category Tables
  */
 export function TableCell({
   children,
   style,
+  align,
+  verticalAlign,
+  minWidth: _minWidth,
 }: TableCellProps): ReactElement {
-  const merged: Style = { paddingX: 1, ...style };
+  const alignStyle: Style = {};
+  if (align) alignStyle.justifyContent = ALIGN_MAP[align];
+  if (verticalAlign) alignStyle.alignItems = VALIGN_MAP[verticalAlign];
+
+  const merged: Style = {
+    paddingX: 1,
+    flexDirection: "row" as const,
+    flexGrow: 1,
+    flexShrink: 1,
+    ...alignStyle,
+    ...style,
+  };
 
   const content =
     typeof children === "string" || typeof children === "number"
@@ -505,4 +675,45 @@ export function TableCell({
       : children;
 
   return React.createElement("box" as any, { style: merged }, content);
+}
+
+// ── TableHeaderRow ───────────────────────────────────────────────
+
+/**
+ * Props for the {@link TableHeaderRow} component.
+ */
+export interface TableHeaderRowProps {
+  /** Style applied to the header row. Bold text is applied by default. */
+  style?: Style;
+  /** {@link TableCell} children representing column headers. */
+  children?: ReactNode;
+}
+
+/**
+ * Convenience component for table header rows.
+ *
+ * Behaves exactly like {@link TableRow} but applies bold text styling
+ * by default, reducing boilerplate for the common pattern of bolding
+ * every header cell.
+ *
+ * @example
+ * ```tsx
+ * <Table borderColor="cyan">
+ *   <TableHeaderRow>
+ *     <TableCell>Name</TableCell>
+ *     <TableCell>Status</TableCell>
+ *     <TableCell>Score</TableCell>
+ *   </TableHeaderRow>
+ *   <TableRow>
+ *     <TableCell>Alice</TableCell>
+ *     <TableCell>Active</TableCell>
+ *     <TableCell>98</TableCell>
+ *   </TableRow>
+ * </Table>
+ * ```
+ * @category Tables
+ */
+export function TableHeaderRow(props: TableHeaderRowProps): ReactElement {
+  const headerStyle: Style = { bold: true, ...props.style };
+  return TableRow({ ...props, style: headerStyle });
 }
