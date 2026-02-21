@@ -23,6 +23,10 @@
 
 Render markdown as native Glyph components. Headings, lists, tables, code blocks with syntax highlighting, images, links, and inline formatting — all rendered with proper flexbox layout, focus navigation, and terminal colors.
 
+<p align="center">
+  <img src="./images/glyph-markdown.webp" alt="Glyph Markdown" width="100%">
+</p>
+
 ---
 
 ## Features
