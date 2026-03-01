@@ -26,7 +26,9 @@ export interface ImageRenderOptions {
 }
 
 /**
- * Check if we're running inside tmux
+ * Check if we're running inside tmux.
+ * Terminals that handle Kitty graphics natively (e.g. Attyx) don't need
+ * DCS passthrough even when TMUX is set — they parse APC directly.
  */
 function inTmux(): boolean {
   return !!process.env.TMUX;
@@ -42,7 +44,7 @@ function inTmux(): boolean {
  */
 function tmuxWrap(seq: string): string {
   if (!inTmux()) return seq;
-  
+
   // Double all ESC characters in the inner sequence
   const doubled = seq.replace(/\x1b/g, "\x1b\x1b");
   return `${ESC}Ptmux;${doubled}${ESC}\\`;
@@ -54,7 +56,6 @@ function tmuxWrap(seq: string): string {
  */
 export function renderImageEscapeSequence(opts: ImageRenderOptions): string | null {
   const caps = detectTerminalCapabilities();
-
   if (caps.supportsKittyGraphics) {
     return renderKittyGraphics(opts);
   }
@@ -100,7 +101,7 @@ function renderKittyGraphics(opts: ImageRenderOptions): string {
 
   // Try to get image dimensions
   const dims = getImageDimensions(data);
-  
+
   // Build command matching chafa's format:
   // a=T - action: transmit and display
   // f=100 - format: PNG
@@ -110,7 +111,7 @@ function renderKittyGraphics(opts: ImageRenderOptions): string {
   // r=<rows> - height in cells
   // m=0/1 - more chunks (0=last, 1=more coming)
   // q=2 - quiet mode (suppress OK response)
-  
+
   let cmd = `a=T,f=100`;
   // Assign image ID so we can delete it later
   if (id !== undefined) {
@@ -120,12 +121,12 @@ function renderKittyGraphics(opts: ImageRenderOptions): string {
     cmd += `,s=${dims.width},v=${dims.height}`;
   }
   cmd += `,c=${width},r=${height}`;
-  
+
   // Kitty protocol uses chunked transmission for large images
   // Each chunk is max 4096 bytes of base64
   const chunkSize = 4096;
   const result: string[] = [moveCursor];
-  
+
   for (let i = 0; i < base64.length; i += chunkSize) {
     const chunk = base64.slice(i, i + chunkSize);
     const isLast = i + chunkSize >= base64.length;
@@ -139,7 +140,7 @@ function renderKittyGraphics(opts: ImageRenderOptions): string {
       // Subsequent chunks are continuation
       escSeq = `${ESC}_G${more};${chunk}${ESC}\\`;
     }
-    
+
     result.push(tmuxWrap(escSeq));
   }
   // Note: cursor hide/show is handled centrally by the render loop
@@ -206,7 +207,7 @@ export function getImageDimensions(data: Buffer): { width: number; height: numbe
       }
 
       const marker = data[offset + 1];
-      
+
       // SOF markers: 0xC0-0xC3, 0xC5-0xC7, 0xC9-0xCB, 0xCD-0xCF
       if (marker !== undefined && (
         (marker >= 0xc0 && marker <= 0xc3) ||
@@ -232,6 +233,33 @@ export function getImageDimensions(data: Buffer): { width: number; height: numbe
       const width = data.readUInt16LE(6);
       const height = data.readUInt16LE(8);
       return { width, height };
+    }
+  }
+
+  // WebP: RIFF....WEBP — VP8 header contains dimensions
+  if (
+    data[0] === 0x52 && data[1] === 0x49 && data[2] === 0x46 && data[3] === 0x46 &&
+    data.length >= 30 &&
+    data[8] === 0x57 && data[9] === 0x45 && data[10] === 0x42 && data[11] === 0x50
+  ) {
+    // VP8 lossy: "VP8 " at offset 12
+    if (data[12] === 0x56 && data[13] === 0x50 && data[14] === 0x38 && data[15] === 0x20) {
+      // Frame header at offset 23+3=26: width at 26 (LE 16-bit), height at 28
+      if (data.length >= 30) {
+        const width = data.readUInt16LE(26) & 0x3fff;
+        const height = data.readUInt16LE(28) & 0x3fff;
+        if (width > 0 && height > 0) return { width, height };
+      }
+    }
+    // VP8L lossless: "VP8L" at offset 12
+    if (data[12] === 0x56 && data[13] === 0x50 && data[14] === 0x38 && data[15] === 0x4c) {
+      if (data.length >= 25) {
+        // 1 byte signature (0x2f) at 21, then 4 bytes: 14-bit width-1, 14-bit height-1
+        const bits = data.readUInt32LE(21);
+        const width = (bits & 0x3fff) + 1;
+        const height = ((bits >> 14) & 0x3fff) + 1;
+        if (width > 0 && height > 0) return { width, height };
+      }
     }
   }
 

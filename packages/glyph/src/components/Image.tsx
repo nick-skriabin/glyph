@@ -16,7 +16,6 @@ import { loadImage, getImageName, isRemoteUrl, detectImageFormat, convertToPng }
 import { getImageDimensions } from "../runtime/imageProtocol.js";
 import { supportsInlineImages } from "../runtime/terminalCapabilities.js";
 import { openImagePreview } from "../runtime/osPreview.js";
-
 /**
  * Lifecycle state of the {@link Image} component.
  * - `"placeholder"` — waiting for user to press Space to load
@@ -293,30 +292,27 @@ export const Image = forwardRef<ImageHandle, ImageProps>(
 
     try {
       const image = await loadImage(src);
-      
       // Decide how to display the image
       const canInline = inline && supportsInlineImages();
 
       if (canInline && layout) {
-        // Check image format - Kitty protocol requires PNG
+        // Convert non-PNG to PNG for protocol compatibility (f=100 = PNG).
+        // If conversion fails, send original data — terminals with stb_image
+        // (Attyx, some others) can decode JPEG/GIF/WebP natively.
         const format = detectImageFormat(image.data);
-        
         let imageData = image.data;
         if (format !== "png") {
           const pngData = convertToPng(image.data);
-          if (!pngData) {
-            // Fall back to OS preview if conversion fails
-            updateState("preview");
-            await openImagePreview(image.localPath);
-            updateState("placeholder");
-            return;
+          if (pngData) {
+            imageData = pngData;
           }
-          imageData = pngData;
+          // If conversion failed, send original data anyway — many terminals
+          // handle non-PNG with f=100 via auto-detection (stb_image, etc.)
         }
-        
+
         // Get image pixel dimensions for autoSize calculation
         const imageDims = getImageDimensions(imageData);
-        
+
         let targetWidth: number;
         let targetHeight: number;
         

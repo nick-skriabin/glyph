@@ -39,9 +39,20 @@ export function detectTerminalCapabilities(debug = false): TerminalCapabilities 
   }
 
   // Ghostty - supports Kitty graphics protocol
-  if (ghosttyResourcesDir || term.includes("ghostty")) {
+  if (ghosttyResourcesDir || term.includes("ghostty") || termProgram === "ghostty") {
     cachedCapabilities = {
       name: "ghostty",
+      supportsKittyGraphics: true,
+      supportsIterm2Images: false,
+      supportsSixel: false,
+    };
+    return cachedCapabilities;
+  }
+
+  // Attyx - supports Kitty graphics protocol (JPEG, GIF, WebP, PNG via stb_image)
+  if (process.env.ATTYX || termProgram === "attyx") {
+    cachedCapabilities = {
+      name: "attyx",
       supportsKittyGraphics: true,
       supportsIterm2Images: false,
       supportsSixel: false,
